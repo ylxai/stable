@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { database } from '@/lib/database';
+import { smartDatabase } from '@/lib/database-with-smart-storage';
 import { uploadFile, generateFilePath } from '@/lib/supabase';
 
 export async function GET() {
@@ -42,8 +43,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    // Upload homepage photo
-    const photo = await database.uploadHomepagePhoto(file);
+    // Upload homepage photo using Smart Storage Manager
+    const photo = await smartDatabase.uploadHomepagePhoto(file);
     return NextResponse.json(photo, { status: 201 });
   } catch (error) {
     // Log error for debugging (consider using proper logging service in production)

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { database } from '@/lib/database';
+import { smartDatabase } from '@/lib/database-with-smart-storage';
 import { uploadFile, generateFilePath } from '@/lib/supabase';
+import { storageAdapter } from '@/lib/storage-adapter';
 
 export async function GET(
   request: NextRequest,
@@ -55,8 +57,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ message: 'Invalid album name' }, { status: 400 });
     }
 
-    // Upload photo with additional parameters
-    const photo = await database.uploadEventPhoto(eventId, file, uploaderName, albumName);
+    // Upload photo using Smart Storage Manager
+    const photo = await smartDatabase.uploadEventPhoto(eventId, file, uploaderName, albumName);
     
     if (!photo) {
       throw new Error('Failed to create photo record');

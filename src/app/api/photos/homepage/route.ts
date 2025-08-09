@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { database } from '@/lib/database';
+import { smartDatabase } from '@/lib/database-with-smart-storage';
 
 export async function GET() {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'No file uploaded' }, { status: 400 });
     }
 
-    const photo = await database.uploadHomepagePhoto(file);
+    const photo = await smartDatabase.uploadHomepagePhoto(file);
     return NextResponse.json(photo, { status: 201 });
   } catch (error: any) {
     console.error('Error uploading homepage photo:', error);
