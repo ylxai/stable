@@ -274,7 +274,7 @@ class StorageOptimizationCLI {
         return;
       }
       
-      const GoogleDriveStorage = require('./src/lib/google-drive-storage');
+      const GoogleDriveStorage = require('../../src/lib/google-drive-storage');
       const googleDrive = new GoogleDriveStorage();
       
       // Initialize first
@@ -362,7 +362,7 @@ class StorageOptimizationCLI {
         return '⚠️ Not authenticated';
       }
       
-      const GoogleDriveStorage = require('./src/lib/google-drive-storage');
+      const GoogleDriveStorage = require('../../src/lib/google-drive-storage');
       const drive = new GoogleDriveStorage();
       const result = await drive.testConnection();
       return result ? '✅ Connected' : '❌ Connection failed';
@@ -436,7 +436,7 @@ class StorageOptimizationCLI {
     }
     
     try {
-      const GoogleDriveStorage = require('./src/lib/google-drive-storage');
+      const GoogleDriveStorage = require('../../src/lib/google-drive-storage');
       const googleDrive = new GoogleDriveStorage();
       
       // Initialize first
