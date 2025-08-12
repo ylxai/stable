@@ -287,6 +287,36 @@ class CloudflareR2Storage {
   }
 
   /**
+   * Download photo from Cloudflare R2
+   */
+  async downloadPhoto(filePath) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      const getParams = {
+        Bucket: this.config.bucketName,
+        Key: filePath
+      };
+
+      const command = new GetObjectCommand(getParams);
+      const response = await this.s3Client.send(command);
+
+      // Convert stream to buffer
+      const chunks = [];
+      for await (const chunk of response.Body) {
+        chunks.push(chunk);
+      }
+      
+      return Buffer.concat(chunks);
+    } catch (error) {
+      console.error(`❌ Failed to download photo ${filePath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Test connection and permissions
    */
   async testConnection() {

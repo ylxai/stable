@@ -11,7 +11,7 @@ class EnvironmentDetector {
     this.environments = {
       development: {
         NODE_ENV: 'development',
-        NEXT_PUBLIC_APP_URL: 'http://ipvhepiuwpol.ap-southeast-1.clawcloudrun.com',
+        NEXT_PUBLIC_APP_URL: 'http://bwpwwtphgute.ap-southeast-1.clawcloudrun.com/',
         NEXT_PUBLIC_ENV_MODE: 'development',
         description: 'VPS CloudRun untuk testing & development'
       },
@@ -70,17 +70,79 @@ class EnvironmentDetector {
   }
 
   /**
-   * Detect dari npm script yang sedang berjalan
+   * Detect package manager yang digunakan
+   */
+  detectPackageManager() {
+    // Check for pnpm-specific environment variables
+    if (process.env.PNPM_SCRIPT_SRC_DIR || process.env.PNPM_HOME) {
+      return 'pnpm';
+    }
+
+    // Check for yarn-specific environment variables
+    if (process.env.npm_config_user_agent && process.env.npm_config_user_agent.includes('yarn')) {
+      return 'yarn';
+    }
+
+    // Get the correct working directory (scripts are run from root, not scripts folder)
+    const rootDir = path.resolve(__dirname, '..');
+    
+    // Check for lock files in order of preference
+    if (fs.existsSync(path.join(rootDir, 'pnpm-lock.yaml'))) {
+      return 'pnpm';
+    }
+
+    if (fs.existsSync(path.join(rootDir, 'yarn.lock'))) {
+      return 'yarn';
+    }
+
+    if (fs.existsSync(path.join(rootDir, 'package-lock.json'))) {
+      return 'npm';
+    }
+
+    // Also check current working directory as fallback
+    if (fs.existsSync(path.join(process.cwd(), 'pnpm-lock.yaml'))) {
+      return 'pnpm';
+    }
+
+    if (fs.existsSync(path.join(process.cwd(), 'yarn.lock'))) {
+      return 'yarn';
+    }
+
+    if (fs.existsSync(path.join(process.cwd(), 'package-lock.json'))) {
+      return 'npm';
+    }
+
+    // Default fallback
+    return 'npm';
+  }
+
+  /**
+   * Detect dari npm/pnpm script yang sedang berjalan
    */
   detectFromNpmScript() {
+    // Detect package manager first
+    const packageManager = this.detectPackageManager();
+    
+    // Get lifecycle event from npm or pnpm
     const npmLifecycleEvent = process.env.npm_lifecycle_event;
+    const pnpmLifecycleEvent = process.env.PNPM_SCRIPT_SRC_DIR ? process.env.npm_lifecycle_event : null;
+    const lifecycleEvent = pnpmLifecycleEvent || npmLifecycleEvent;
+    
+    // Get command from npm or pnpm
     const npmCommand = process.env.npm_command;
+    const pnpmCommand = process.env.PNPM_SCRIPT_SRC_DIR ? 'pnpm' : null;
+    const command = pnpmCommand || npmCommand;
 
-    if (npmLifecycleEvent === 'dev') {
+    console.log(`📦 Package Manager: ${packageManager}`);
+    if (lifecycleEvent) {
+      console.log(`🔄 Lifecycle Event: ${lifecycleEvent}`);
+    }
+
+    if (lifecycleEvent === 'dev') {
       return 'development';
     }
 
-    if (npmLifecycleEvent === 'build') {
+    if (lifecycleEvent === 'build') {
       // Check jika ada flag khusus
       const args = process.argv.slice(2);
       if (args.includes('--staging')) {
@@ -89,13 +151,28 @@ class EnvironmentDetector {
       return 'production';
     }
 
-    if (npmLifecycleEvent === 'build:staging') {
+    if (lifecycleEvent === 'build:staging') {
       return 'staging';
     }
 
-    if (npmLifecycleEvent === 'start') {
+    if (lifecycleEvent === 'start') {
       // Start biasanya production, tapi check existing config
       return this.detectFromExistingConfig() || 'production';
+    }
+
+    // Check for pnpm-specific environment variables
+    if (process.env.PNPM_SCRIPT_SRC_DIR) {
+      // Running under pnpm, check script name from argv
+      const scriptName = process.argv[2];
+      if (scriptName === 'dev') {
+        return 'development';
+      }
+      if (scriptName === 'build:staging') {
+        return 'staging';
+      }
+      if (scriptName === 'build') {
+        return 'production';
+      }
     }
 
     return null;
@@ -301,6 +378,7 @@ class EnvironmentDetector {
    */
   displayEnvironmentInfo(envName) {
     const config = this.environments[envName];
+    const packageManager = this.detectPackageManager();
     
     console.log('\n🎯 ENVIRONMENT CONFIGURATION:');
     console.log('='.repeat(40));
@@ -308,7 +386,38 @@ class EnvironmentDetector {
     console.log(`📝 Description: ${config.description}`);
     console.log(`🌐 URL: ${config.NEXT_PUBLIC_APP_URL}`);
     console.log(`⚙️ NODE_ENV: ${config.NODE_ENV}`);
+    console.log(`📦 Package Manager: ${packageManager}`);
     console.log('='.repeat(40));
+  }
+
+  /**
+   * Get package manager specific commands
+   */
+  getPackageManagerCommands(packageManager = null) {
+    const pm = packageManager || this.detectPackageManager();
+    
+    const commands = {
+      npm: {
+        install: 'npm install',
+        dev: 'npm run dev',
+        build: 'npm run build',
+        start: 'npm start'
+      },
+      yarn: {
+        install: 'yarn install',
+        dev: 'yarn dev',
+        build: 'yarn build',
+        start: 'yarn start'
+      },
+      pnpm: {
+        install: 'pnpm install',
+        dev: 'pnpm dev',
+        build: 'pnpm build',
+        start: 'pnpm start'
+      }
+    };
+
+    return commands[pm] || commands.npm;
   }
 }
 

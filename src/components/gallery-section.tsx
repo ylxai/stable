@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, ZoomIn } from "lucide-react"; // Hanya ini yang dibutuhkan untuk ikon placeholder
-import { useQuery } from "@tanstack/react-query"; // Ini masih dibutuhkan jika ingin fetching data
-import { type Photo } from "@/lib/database"; // Tetap butuh tipe Photo
+import { Camera, ZoomIn } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { type Photo } from "@/lib/database";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
-// Hapus impor PhotoLightbox karena kita mengembalikannya
 import { BasicLightbox } from "./ui/basic-lightbox";
-import { OptimizedImage } from "./ui/optimized-image"; 
+import { OptimizedImage } from "./ui/optimized-image";
+import { ProgressiveGallerySkeleton } from "./ui/gallery-skeleton";
+import { PhotoGridLoader, MorphingLoader, FloatingParticles } from "./ui/engaging-loading"; 
 
 // --- BAGIAN INI UNTUK FRAMER-MOTION YANG DINONAKTIFKAN (SEBELUMNYA AKAN DIKEMBALIKAN JIKA ANDA INGIN ANIMASI) ---
 // import { motion, Easing } from "framer-motion"; 
@@ -60,10 +61,9 @@ export default function GallerySection() {
   };
 
   return (
-    <section id="gallery" className="py-20 bg-wedding-ivory">
-      {/* Hapus motion.div pembungkus utama, ganti dengan div biasa */}
-      {/* <motion.div variants={containerVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="gallery" className="py-20 bg-wedding-ivory relative overflow-hidden">
+      <FloatingParticles count={8} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           {/* Ganti motion.h2 dan motion.p dengan h2 dan p biasa */}
           {/* <motion.h2 variants={itemVariants} className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"> */}
@@ -77,8 +77,11 @@ export default function GallerySection() {
         </div>
         
         {isLoading && (
-          <div className="flex justify-center py-8">
-            <LoadingSpinner />  
+          <div className="space-y-8">
+            <div className="flex justify-center">
+              <MorphingLoader />
+            </div>
+            <PhotoGridLoader count={12} />
           </div>
         )}
 
@@ -102,8 +105,9 @@ export default function GallerySection() {
               // <motion.div key={photo.id} variants={itemVariants} className="relative group overflow-hidden rounded-lg shadow-md cursor-pointer">
               <div 
                 key={photo.id} 
-                className="relative group overflow-hidden rounded-lg shadow-md cursor-pointer"
+                className="relative group overflow-hidden rounded-lg shadow-md cursor-pointer animate-fade-in-up hover:animate-pulse-glow"
                 onClick={() => openLightbox(index)}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 {photo.optimized_images ? (
                   <OptimizedImage

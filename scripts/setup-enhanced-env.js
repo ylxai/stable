@@ -39,10 +39,15 @@ async function setupEnhancedEnvironment() {
   // Test storage connections
   await testStorageConnections(config);
 
+  // Get package manager specific commands
+  const packageManager = detector.detectPackageManager();
+  const commands = detector.getPackageManagerCommands(packageManager);
+
   console.log('\n✅ Enhanced environment setup complete!');
-  console.log(`🚀 Ready for: npm run dev (${detectedEnv})`);
+  console.log(`🚀 Ready for: ${commands.dev} (${detectedEnv})`);
   console.log(`📱 Access at: ${config.NEXT_PUBLIC_APP_URL}`);
   console.log('💾 Storage tiers configured and ready');
+  console.log(`📦 Using ${packageManager} as package manager`);
 }
 
 function displayStorageInfo(envName, config) {

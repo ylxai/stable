@@ -10,6 +10,14 @@ export type Event = {
   is_premium: boolean;
   qr_code: string | null;
   shareable_link: string | null;
+  status?: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled' | 'archived';
+  is_archived?: boolean;
+  archived_at?: string;
+  google_drive_backup_url?: string;
+  participant_count?: number;
+  photo_count?: number;
+  message_count?: number;
+  last_activity?: string;
 };
 
 export type Photo = {
@@ -225,6 +233,109 @@ class DatabaseService {
       console.error('Error in deleteEvent:', error);
       throw error;
     }
+  }
+
+  // --- Event Status Management Methods ---
+  async updateEventStatus(id: string, status: string): Promise<Event> {
+    const updates: any = { status };
+    
+    // Add timestamp for specific status changes
+    if (status === 'archived') {
+      updates.is_archived = true;
+      updates.archived_at = new Date().toISOString();
+    } else if (status === 'active' && updates.is_archived) {
+      updates.is_archived = false;
+      updates.archived_at = null;
+    }
+
+    const { data, error } = await this.supabase
+      .from('events')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  }
+
+  async getEventWithStats(id: string): Promise<Event | null> {
+    // Get basic event data
+    const { data: event, error: eventError } = await this.supabase
+      .from('events')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (eventError) throw eventError;
+    if (!event) return null;
+
+    // Get photo count
+    const { count: photoCount, error: photoError } = await this.supabase
+      .from('photos')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', id);
+
+    // Get message count
+    const { count: messageCount, error: messageError } = await this.supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', id);
+
+    // Get last activity (most recent photo or message)
+    const { data: lastPhoto } = await this.supabase
+      .from('photos')
+      .select('uploaded_at')
+      .eq('event_id', id)
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const { data: lastMessage } = await this.supabase
+      .from('messages')
+      .select('created_at')
+      .eq('event_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Determine last activity
+    let lastActivity = null;
+    if (lastPhoto && lastMessage) {
+      lastActivity = new Date(lastPhoto.uploaded_at) > new Date(lastMessage.created_at) 
+        ? lastPhoto.uploaded_at 
+        : lastMessage.created_at;
+    } else if (lastPhoto) {
+      lastActivity = lastPhoto.uploaded_at;
+    } else if (lastMessage) {
+      lastActivity = lastMessage.created_at;
+    }
+
+    // Get unique participant count (based on uploader names and message senders)
+    const { data: uploaders } = await this.supabase
+      .from('photos')
+      .select('uploader_name')
+      .eq('event_id', id)
+      .not('uploader_name', 'is', null);
+
+    const { data: messageSenders } = await this.supabase
+      .from('messages')
+      .select('guest_name')
+      .eq('event_id', id)
+      .not('guest_name', 'is', null);
+
+    const uniqueParticipants = new Set([
+      ...(uploaders?.map(u => u.uploader_name) || []),
+      ...(messageSenders?.map(m => m.guest_name) || [])
+    ]);
+
+    return {
+      ...event,
+      photo_count: photoCount || 0,
+      message_count: messageCount || 0,
+      participant_count: uniqueParticipants.size,
+      last_activity: lastActivity
+    };
   }
 
   async verifyEventAccessCode(eventId: string, code: string): Promise<boolean> {

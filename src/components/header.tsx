@@ -21,9 +21,9 @@ export default function Header() {
             <span 
               className="text-xl sm:text-2xl lg:text-3xl text-dynamic-accent group-hover:text-dynamic-accent/80 transition-all duration-300"
               style={{
-                fontFamily: '"Dancing Script", "Brush Script MT", cursive',
-                fontWeight: '600',
-                letterSpacing: '0.5px'
+                fontFamily: '"Mrs Saint Delafield", "Bilbo Swash Caps", cursive',
+                fontWeight: '400',
+                letterSpacing: '1px'
               }}
             >
               Hafiportrait
@@ -47,31 +47,25 @@ export default function Header() {
             <Link href="/#contact" className="text-dynamic-secondary hover:text-dynamic-accent transition-colors font-medium">
               Kontak
             </Link>
+            <Link href="/admin" className="text-dynamic-secondary hover:text-dynamic-accent transition-colors font-medium">
+              Admin
+            </Link>
           </nav>
 
-          {/* Desktop Admin Button */}
+          {/* Desktop CTA Area */}
           <div className="hidden md:flex items-center space-x-4">
             <Button 
               asChild
               className="btn-dynamic-primary mobile-button"
             >
-              <Link href="/admin">
-                Admin
+              <Link href="/#contact">
+                Hubungi Kami
               </Link>
             </Button>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-2">
-            <Button 
-              asChild
-              size="sm"
-              className="btn-dynamic-primary text-xs px-3"
-            >
-              <Link href="/admin">
-                Admin
-              </Link>
-            </Button>
+          <div className="md:hidden">
             <Button
               variant="ghost"
               size="icon"
@@ -115,6 +109,23 @@ export default function Header() {
             >
               Kontak
             </Link>
+            <Link 
+              href="/admin" 
+              className="block px-4 py-3 text-dynamic-secondary hover:text-dynamic-accent hover:bg-dynamic-accent/10 transition-colors touch-target font-medium"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Admin
+            </Link>
+            <div className="px-4 pt-2">
+              <Button 
+                asChild
+                className="btn-dynamic-primary w-full"
+              >
+                <Link href="/#contact">
+                  Hubungi Kami
+                </Link>
+              </Button>
+            </div>
           </div>
         )}
       </div>

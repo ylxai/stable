@@ -28,16 +28,24 @@ import {
   Image,
   FolderOpen,
   Trash,
-  Crown
+  Play,
+  GripVertical,
+  Star,
+  Crown,
+  Trash2
 } from "lucide-react";
 
 // Import existing components
 import EventList from "@/components/admin/EventList";
 import EventForm from "@/components/admin/EventForm";
 import StatsCards from "@/components/admin/StatsCards";
+import { EventStatusSummary } from "@/components/admin/event-status-summary";
+import { AutoStatusManager } from "@/components/admin/auto-status-manager";
+import { SmartNotificationManager } from "@/components/admin/smart-notification-manager";
 import DSLRMonitor from "@/components/admin/dslr-monitor";
 import NotificationManager from "@/components/admin/notification-manager";
 import SystemMonitor from "@/components/admin/system-monitor";
+import { BackupStatusMonitor } from "@/components/admin/backup-status-monitor";
 import { ColorPaletteProvider } from "@/components/ui/color-palette-provider";
 import { ColorPaletteSwitcher } from "@/components/ui/color-palette-switcher";
 import NotificationBell from "@/components/ui/notification-bell";
@@ -60,6 +68,14 @@ export default function AdminDashboardGrouped() {
   
   // Photo management states
   const [selectedPhotoTab, setSelectedPhotoTab] = useState("homepage");
+  
+  // Slideshow management states
+  const [slideshowSettings, setSlideshowSettings] = useState({
+    interval: 5,
+    transition: 'fade',
+    autoplay: true,
+    loop: true
+  });
   const [selectedEventForPhotos, setSelectedEventForPhotos] = useState("");
   const [isHomepageUploadOpen, setIsHomepageUploadOpen] = useState(false);
   const [isOfficialUploadOpen, setIsOfficialUploadOpen] = useState(false);
@@ -191,11 +207,43 @@ export default function AdminDashboardGrouped() {
     },
   });
 
+  // Update event status mutation
+  const updateEventStatusMutation = useMutation({
+    mutationFn: async ({ eventId, status }: { eventId: string; status: string }) => {
+      const response = await apiRequest("PUT", `/api/admin/events/${eventId}/status`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      toast({
+        title: "Status Event Berhasil Diubah!",
+        description: "Status event telah diperbarui.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Gagal Mengubah Status Event",
+        description: "Terjadi kesalahan saat mengubah status event.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch photos for homepage
   const { data: homepagePhotos = [], isLoading: homepagePhotosLoading } = useQuery({
     queryKey: ['/api/admin/photos/homepage'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/admin/photos/homepage");
+      return response.json();
+    },
+  });
+
+  // Fetch slideshow photos
+  const { data: slideshowPhotos = [], isLoading: slideshowPhotosLoading } = useQuery({
+    queryKey: ['/api/admin/slideshow'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/admin/slideshow");
       return response.json();
     },
   });
@@ -209,6 +257,52 @@ export default function AdminDashboardGrouped() {
       return response.json();
     },
     enabled: !!selectedEventForPhotos,
+  });
+
+  // Add photo to slideshow mutation
+  const addToSlideshowMutation = useMutation({
+    mutationFn: async (photoId: string) => {
+      const response = await apiRequest('POST', '/api/admin/slideshow', {
+        photoId
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/slideshow'] });
+      toast({
+        title: "Berhasil",
+        description: "Foto berhasil ditambahkan ke slideshow",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menambahkan foto ke slideshow",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove photo from slideshow mutation
+  const removeFromSlideshowMutation = useMutation({
+    mutationFn: async (photoId: string) => {
+      const response = await apiRequest('DELETE', `/api/admin/slideshow?photoId=${photoId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/slideshow'] });
+      toast({
+        title: "Berhasil",
+        description: "Foto berhasil dihapus dari slideshow",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menghapus foto dari slideshow",
+        variant: "destructive",
+      });
+    },
   });
 
   // Upload homepage photo mutation
@@ -556,6 +650,38 @@ export default function AdminDashboardGrouped() {
     setCreatedEvent(null); // Reset created event when creating new
     setIsEventFormOpen(true);
   };
+
+  const handleStatusChange = (eventId: string, newStatus: string) => {
+    // Get current event to track old status
+    const currentEvent = events.find(e => e.id === eventId);
+    const oldStatus = currentEvent?.status || 'unknown';
+    
+    updateEventStatusMutation.mutate(
+      { eventId, status: newStatus },
+      {
+        onSuccess: (data) => {
+          // Trigger status change notification
+          if (typeof window !== 'undefined') {
+            const event = new CustomEvent('event-status-changed', {
+              detail: {
+                eventId,
+                eventName: currentEvent?.name || 'Unknown Event',
+                oldStatus,
+                newStatus,
+                timestamp: new Date().toISOString()
+              }
+            });
+            window.dispatchEvent(event);
+          }
+        }
+      }
+    );
+  };
+
+  const handleRefreshEvents = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/events'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+  };
   
   // Conditional returns after all hooks are called
   // Show loading while checking authentication
@@ -587,7 +713,11 @@ export default function AdminDashboardGrouped() {
                 <p className="text-gray-600">Kelola event dan foto Anda dengan mudah</p>
               </div>
               <div className="flex items-center gap-4">
-                <NotificationBell />
+                <SmartNotificationManager 
+                  events={events}
+                  onRefresh={handleRefreshEvents}
+                  onStatusChange={handleStatusChange}
+                />
                 
                 {/* User Info & Logout */}
                 <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-2 shadow-sm border">
@@ -822,6 +952,12 @@ export default function AdminDashboardGrouped() {
                           </Button>
                         </div>
 
+                        {/* Event Status Summary */}
+                        <EventStatusSummary events={events} />
+
+                        {/* Auto Status Management */}
+                        <AutoStatusManager onRefresh={handleRefreshEvents} />
+
                         {/* Event Management dengan CRUD */}
                         {eventsLoading ? (
                           <div className="text-center py-8">
@@ -855,6 +991,18 @@ export default function AdminDashboardGrouped() {
                               events={events}
                               onEdit={handleStartEdit}
                               onDelete={(eventId) => deleteEventMutation.mutate(eventId)}
+                              onStatusChange={handleStatusChange}
+                              onRefresh={handleRefreshEvents}
+                              onBackupComplete={(eventId, result) => {
+                                // Refresh events to update backup status
+                                queryClient.invalidateQueries({ queryKey: ['/api/admin/events'] });
+                                queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+                              }}
+                              onArchiveComplete={(eventId, result) => {
+                                // Refresh events to update archive status
+                                queryClient.invalidateQueries({ queryKey: ['/api/admin/events'] });
+                                queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+                              }}
                             />
                           </div>
                         )}
@@ -876,14 +1024,21 @@ export default function AdminDashboardGrouped() {
                     </CardHeader>
                     <CardContent>
                       <Tabs value={selectedPhotoTab} onValueChange={setSelectedPhotoTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-6">
+                        <TabsList className="grid w-full grid-cols-3 mb-6">
                           <TabsTrigger value="homepage" className="flex items-center gap-2">
                             <Image className="w-4 h-4" />
-                            Homepage Gallery
+                            <span className="hidden sm:inline">Homepage</span>
+                            <span className="sm:hidden">Home</span>
+                          </TabsTrigger>
+                          <TabsTrigger value="slideshow" className="flex items-center gap-2">
+                            <Play className="w-4 h-4" />
+                            <span className="hidden sm:inline">Slideshow</span>
+                            <span className="sm:hidden">Slide</span>
                           </TabsTrigger>
                           <TabsTrigger value="events" className="flex items-center gap-2">
                             <FolderOpen className="w-4 h-4" />
-                            Event Gallery
+                            <span className="hidden sm:inline">Events</span>
+                            <span className="sm:hidden">Event</span>
                           </TabsTrigger>
                         </TabsList>
 
@@ -980,6 +1135,175 @@ export default function AdminDashboardGrouped() {
                               <p>Belum ada foto di galeri homepage.</p>
                             </div>
                           )}
+                        </TabsContent>
+
+                        {/* Slideshow Photos Tab */}
+                        <TabsContent value="slideshow" className="space-y-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h3 className="text-lg font-semibold">Hero Slideshow</h3>
+                              <p className="text-sm text-muted-foreground">Kelola foto untuk slideshow di homepage</p>
+                            </div>
+                            <Button 
+                              className="bg-wedding-gold hover:bg-wedding-gold/90 text-black"
+                              size="sm"
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              Preview
+                            </Button>
+                          </div>
+
+                          {/* Mobile-optimized slideshow manager */}
+                          <div className="space-y-4">
+                            {/* Slideshow photos grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {slideshowPhotosLoading ? (
+                                // Loading skeleton
+                                Array.from({ length: 4 }).map((_, index) => (
+                                  <div key={index} className="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+                                ))
+                              ) : slideshowPhotos.length > 0 ? (
+                                // Existing slideshow photos
+                                slideshowPhotos.map((photo: any, index: number) => (
+                                  <div key={photo.id} className="relative group aspect-square">
+                                    <img
+                                      src={photo.url}
+                                      alt={photo.original_name}
+                                      className="w-full h-full object-cover rounded-lg"
+                                    />
+                                    {/* Order indicator */}
+                                    <div className="absolute top-2 left-2 bg-wedding-gold text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                                      {index + 1}
+                                    </div>
+                                    {/* Remove button */}
+                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => removeFromSlideshowMutation.mutate(photo.id)}
+                                        disabled={removeFromSlideshowMutation.isPending}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    {/* Drag handle for reordering */}
+                                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <GripVertical className="h-4 w-4 text-white bg-black/50 rounded p-0.5" />
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                // Empty state
+                                <div className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 col-span-full">
+                                  <div className="text-center">
+                                    <Play className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500 mb-2">Belum ada foto slideshow</p>
+                                    <p className="text-xs text-gray-400">Pilih foto dari galeri homepage di bawah</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Add from gallery section */}
+                            <div className="border rounded-lg p-4 bg-gray-50">
+                              <h4 className="font-medium mb-3 flex items-center gap-2">
+                                <Image className="w-4 h-4" />
+                                Add from Homepage Gallery
+                              </h4>
+                              <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
+                                {homepagePhotos?.slice(0, 12).map((photo: any) => {
+                                  const isInSlideshow = slideshowPhotos.some((sp: any) => sp.id === photo.id);
+                                  return (
+                                    <div 
+                                      key={photo.id} 
+                                      className={`relative group cursor-pointer ${
+                                        isInSlideshow ? 'opacity-50' : ''
+                                      }`}
+                                      onClick={() => {
+                                        if (!isInSlideshow && !addToSlideshowMutation.isPending) {
+                                          addToSlideshowMutation.mutate(photo.id);
+                                        }
+                                      }}
+                                    >
+                                      <img
+                                        src={photo.url}
+                                        alt={photo.original_name}
+                                        className="w-full aspect-square object-cover rounded border-2 border-transparent hover:border-wedding-gold transition-colors"
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors rounded flex items-center justify-center">
+                                        {isInSlideshow ? (
+                                          <Star className="w-6 h-6 text-wedding-gold" />
+                                        ) : (
+                                          <Plus className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        )}
+                                      </div>
+                                      {addToSlideshowMutation.isPending && (
+                                        <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
+                                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Settings */}
+                            <div className="border rounded-lg p-4">
+                              <h4 className="font-medium mb-3 flex items-center gap-2">
+                                <Settings className="w-4 h-4" />
+                                Slideshow Settings
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <label className="block text-gray-600 mb-1">Interval</label>
+                                  <select 
+                                    className="w-full p-2 border rounded text-sm"
+                                    value={slideshowSettings.interval}
+                                    onChange={(e) => setSlideshowSettings(prev => ({ ...prev, interval: Number(e.target.value) }))}
+                                  >
+                                    <option value={3}>3 seconds</option>
+                                    <option value={5}>5 seconds</option>
+                                    <option value={7}>7 seconds</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-gray-600 mb-1">Transition</label>
+                                  <select 
+                                    className="w-full p-2 border rounded text-sm"
+                                    value={slideshowSettings.transition}
+                                    onChange={(e) => setSlideshowSettings(prev => ({ ...prev, transition: e.target.value }))}
+                                  >
+                                    <option value="fade">Fade</option>
+                                    <option value="slide">Slide</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-gray-600 mb-1">Autoplay</label>
+                                  <select 
+                                    className="w-full p-2 border rounded text-sm"
+                                    value={slideshowSettings.autoplay.toString()}
+                                    onChange={(e) => setSlideshowSettings(prev => ({ ...prev, autoplay: e.target.value === 'true' }))}
+                                  >
+                                    <option value="true">On</option>
+                                    <option value="false">Off</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-gray-600 mb-1">Loop</label>
+                                  <select 
+                                    className="w-full p-2 border rounded text-sm"
+                                    value={slideshowSettings.loop.toString()}
+                                    onChange={(e) => setSlideshowSettings(prev => ({ ...prev, loop: e.target.value === 'true' }))}
+                                  >
+                                    <option value="true">On</option>
+                                    <option value="false">Off</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </TabsContent>
 
                         {/* Event Photos Tab */}
@@ -1129,9 +1453,9 @@ export default function AdminDashboardGrouped() {
 
               {/* SYSTEM TAB */}
               <TabsContent value="system" className="space-y-6">
-                {/* Sub-navigation */}
+                {/* Sub-navigation - Mobile Optimized */}
                 <div className="border-b">
-                  <nav className="flex space-x-8 overflow-x-auto">
+                  <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto pb-2">
                     <SubTabButton
                       active={activeSubTab === 'notifications'}
                       onClick={() => setActiveSubTab('notifications')}
@@ -1144,12 +1468,48 @@ export default function AdminDashboardGrouped() {
                       icon="📊"
                       label="Monitoring"
                     />
+                    <SubTabButton
+                      active={activeSubTab === 'backup'}
+                      onClick={() => setActiveSubTab('backup')}
+                      icon="💾"
+                      label="Backup"
+                    />
                   </nav>
                 </div>
 
                 {/* System Content */}
                 {activeSubTab === 'notifications' && <NotificationManager />}
                 {activeSubTab === 'monitoring' && <SystemMonitor />}
+                {activeSubTab === 'backup' && (
+                  <div className="space-y-6">
+                    {/* Mobile-Optimized Header */}
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 sm:p-6 border border-blue-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <h2 className="text-lg sm:text-xl font-bold text-blue-900 flex items-center gap-2">
+                            💾 Backup Management
+                          </h2>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Monitor dan kelola backup event ke Google Drive
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 text-xs sm:text-sm">
+                          <div className="bg-white/80 rounded-lg px-3 py-2 text-center">
+                            <div className="font-semibold text-green-600">15GB+</div>
+                            <div className="text-gray-600">Google Drive</div>
+                          </div>
+                          <div className="bg-white/80 rounded-lg px-3 py-2 text-center">
+                            <div className="font-semibold text-blue-600">FREE</div>
+                            <div className="text-gray-600">Storage</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* BackupStatusMonitor Component */}
+                    <BackupStatusMonitor />
+                  </div>
+                )}
               </TabsContent>
 
               {/* CUSTOMIZATION TAB */}

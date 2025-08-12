@@ -330,6 +330,121 @@ class GoogleDriveStorage {
   }
 
   /**
+   * Create a folder in Google Drive
+   */
+  async createFolder(folderName, parentFolderId = null) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      const folderMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: parentFolderId ? [parentFolderId] : (this.config.rootFolderId ? [this.config.rootFolderId] : undefined)
+      };
+
+      const folder = await this.drive.files.create({
+        resource: folderMetadata,
+        fields: 'id, name, webViewLink'
+      });
+
+      console.log(`✅ Created Google Drive folder: ${folderName}`);
+      
+      return {
+        id: folder.data.id,
+        name: folder.data.name,
+        webViewLink: folder.data.webViewLink
+      };
+    } catch (error) {
+      console.error(`❌ Failed to create folder ${folderName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload file to specific folder
+   */
+  async uploadToFolder(photoBuffer, fileName, folderId, metadata = {}) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      // Prepare file metadata
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId],
+        description: metadata.description || `Backup photo - ${fileName}`
+      };
+
+      // Upload file
+      const media = {
+        mimeType: 'image/jpeg',
+        body: require('stream').Readable.from(photoBuffer)
+      };
+
+      const file = await this.drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: 'id, name, size, webViewLink, webContentLink'
+      });
+
+      // Make file publicly viewable
+      await this.drive.permissions.create({
+        fileId: file.data.id,
+        resource: {
+          role: 'reader',
+          type: 'anyone'
+        }
+      });
+
+      console.log(`✅ Uploaded to Google Drive folder: ${fileName}`);
+      
+      return {
+        fileId: file.data.id,
+        fileName: file.data.name,
+        size: file.data.size,
+        webViewLink: file.data.webViewLink,
+        webContentLink: file.data.webContentLink,
+        publicUrl: `https://drive.google.com/uc?id=${file.data.id}`
+      };
+    } catch (error) {
+      console.error(`❌ Failed to upload ${fileName} to folder:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download photo from Google Drive
+   */
+  async downloadPhoto(fileId) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      const response = await this.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      }, {
+        responseType: 'stream'
+      });
+
+      // Convert stream to buffer
+      const chunks = [];
+      for await (const chunk of response.data) {
+        chunks.push(chunk);
+      }
+      
+      return Buffer.concat(chunks);
+    } catch (error) {
+      console.error(`❌ Failed to download photo ${fileId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Test connection and permissions
    */
   async testConnection() {

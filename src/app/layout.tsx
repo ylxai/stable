@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         <link 
-          href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap" 
+          href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Mrs+Saint+Delafield&display=swap" 
           rel="stylesheet" 
         />
       </head>

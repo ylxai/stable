@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Photo {
@@ -24,14 +24,55 @@ export function BasicLightbox({
   isOpen,
   onClose
 }: BasicLightboxProps) {
-  const [localIndex, setLocalIndex] = useState(currentIndex);
+  const [activeIndex, setActiveIndex] = useState(currentIndex);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Touch/Swipe handling
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const imageRef = useRef<HTMLDivElement>(null);
+
+  // Sync with props when lightbox opens or currentIndex changes
+  useEffect(() => {
+    setActiveIndex(currentIndex);
+  }, [currentIndex, isOpen]);
 
   const goToPrevious = () => {
-    setLocalIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setActiveIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const goToNext = () => {
-    setLocalIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setActiveIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  // Touch handlers for swipe gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && photos.length > 1) {
+      goToNext();
+    }
+    if (isRightSwipe && photos.length > 1) {
+      goToPrevious();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,26 +81,36 @@ export function BasicLightbox({
     if (e.key === 'Escape') onClose();
   };
 
-  if (!isOpen || !photos[localIndex]) return null;
+  if (!isOpen || !photos[activeIndex]) return null;
 
-  const currentPhoto = photos[localIndex];
+  const currentPhoto = photos[activeIndex];
 
   return (
     <div 
       className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-      onClick={onClose}
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
+      {/* Background overlay - click to close */}
+      <div 
+        className="absolute inset-0"
+        onClick={onClose}
+      />
+      
       {/* Main Image */}
       <div 
-        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
+        ref={imageRef}
+        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center z-10"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <img
           src={currentPhoto.url}
           alt={currentPhoto.original_name}
-          className="max-w-full max-h-full object-contain"
+          className={`max-w-full max-h-full object-contain transition-all duration-300 ${
+            isTransitioning ? 'opacity-70 scale-95' : 'opacity-100 scale-100'
+          }`}
           style={{ maxHeight: '90vh', maxWidth: '90vw' }}
         />
 
@@ -96,7 +147,7 @@ export function BasicLightbox({
         {/* Photo Counter */}
         {photos.length > 1 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-sm">
-            {localIndex + 1} / {photos.length}
+            {activeIndex + 1} / {photos.length}
           </div>
         )}
 
@@ -104,6 +155,13 @@ export function BasicLightbox({
         {currentPhoto.uploader_name && (
           <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded text-sm">
             {currentPhoto.uploader_name}
+          </div>
+        )}
+
+        {/* Swipe Indicator for Mobile */}
+        {photos.length > 1 && (
+          <div className="swipe-indicator">
+            ← Geser untuk navigasi →
           </div>
         )}
       </div>
