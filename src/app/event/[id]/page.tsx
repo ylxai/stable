@@ -63,6 +63,14 @@ export default function EventPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<"all" | "official" | "guest">("all");
   const [showQRModal, setShowQRModal] = useState(false);
+  
+  // Upload states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Upload states untuk sistem baru
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Fetch event details
   const { data: event, isLoading: eventLoading } = useQuery({
@@ -163,8 +171,8 @@ export default function EventPage() {
         throw new Error('Hanya file gambar yang diperbolehkan');
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('Ukuran file maksimal 10MB');
+      if (file.size > 15 * 1024 * 1024) {
+        throw new Error('Ukuran file maksimal 15MB');
       }
 
       const formData = new FormData();
@@ -188,11 +196,6 @@ export default function EventPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/events', id, 'photos'] });
-      // Reset form setelah upload berhasil
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
       
       const uploaderDisplayName = uploaderName.trim() || 'Anonim';
       toast({
@@ -200,8 +203,8 @@ export default function EventPage() {
         description: `Foto berhasil ditambahkan ke album ${selectedAlbum} oleh ${uploaderDisplayName}.`,
       });
       
-      // Opsional: Clear nama setelah upload (uncomment jika diinginkan)
-      // setUploaderName("");
+      // Reset selected file dan preview
+      handleRemoveSelectedFile();
     },
     onError: (error) => {
       toast({
@@ -211,6 +214,75 @@ export default function EventPage() {
       });
     },
   });
+
+  // Fungsi untuk handle file selection (bukan langsung upload)
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validasi format file yang lebih lengkap
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 
+      'image/heic', 'image/heif', 'image/gif', 'image/bmp',
+      // RAW formats
+      'image/x-nikon-nef', 'image/x-canon-cr2', 'image/x-sony-arw',
+      'image/x-adobe-dng', 'image/x-fuji-raf'
+    ];
+
+    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().match(/\.(nef|cr2|arw|dng|raf)$/)) {
+      toast({
+        title: "Format File Tidak Didukung",
+        description: "Gunakan format: JPG, PNG, WEBP, HEIC, HEIF, GIF, BMP, NEF, CR2, ARW, DNG, RAF",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast({
+        title: "File Terlalu Besar",
+        description: "Ukuran file maksimal 15MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set selected file dan buat preview
+    setSelectedFile(file);
+    
+    // Buat preview URL untuk gambar
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+
+    toast({
+      title: "Foto Dipilih",
+      description: `${file.name} siap untuk diupload`,
+    });
+  };
+
+  // Fungsi untuk upload foto yang sudah dipilih
+  const handleUploadSelectedFile = () => {
+    if (!selectedFile) return;
+    
+    uploadPhotoMutation.mutate(selectedFile);
+  };
+
+  // Fungsi untuk hapus file yang dipilih
+  const handleRemoveSelectedFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    
+    // Reset input file
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
 
   // Message submission mutation
   const addMessageMutation = useMutation({
@@ -334,7 +406,7 @@ export default function EventPage() {
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "File Terlalu Besar",
-          description: "Ukuran file maksimal 10MB.",
+          description: "Ukuran file maksimal 15MB.",
           variant: "destructive",
         });
         return;
@@ -642,54 +714,10 @@ export default function EventPage() {
               {(album === "Tamu" || album === "Bridesmaid") && !needsAccessCode && (
       <Card className={`${isMobile ? 'mobile-card mobile-padding' : 'p-4 sm:p-6'}`}>
         <div className={isMobile ? 'mobile-spacing' : 'space-y-4'}>
-          {/* Simplified Upload Area */}
-          <div className="flex items-center justify-center w-full">
-            <label className={`
-              flex flex-col items-center justify-center w-full cursor-pointer rounded-lg
-              border-2 border-dashed transition-all duration-200
-              ${uploadPhotoMutation.isPending 
-                ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-              }
-              ${isMobile ? 'h-32' : 'h-28'}
-            `}>
-              <div className={`flex flex-col items-center justify-center text-center ${
-                isMobile ? 'px-4 py-6' : 'pt-4 pb-5'
-              }`}>
-                <Upload 
-                  className={`mb-3 transition-colors ${
-                    isMobile ? 'w-8 h-8' : 'w-7 h-7'
-                  } ${
-                    uploadPhotoMutation.isPending 
-                      ? 'text-gray-400' 
-                      : album === 'Tamu' ? 'text-wedding-rose' : 'text-wedding-sage'
-                  }`} 
-                />
-                <p className={`mb-1 font-medium ${
-                  isMobile ? 'text-sm' : 'text-sm'
-                } ${
-                  uploadPhotoMutation.isPending ? 'text-gray-400' : 'text-gray-700'
-                }`}>
-                  {uploadPhotoMutation.isPending ? 'Mengupload...' : 'Ketuk untuk upload foto'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  PNG, JPG, GIF (maks. 10MB)
-                </p>
-              </div>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileUpload}
-                className="hidden"
-                disabled={uploadPhotoMutation.isPending}
-              />
-            </label>
-          </div>
-          
-          {/* Simplified Name Input */}
-          <div className={isMobile ? 'space-y-3' : 'space-y-2'}>
+          {/* Upload Section - New Design */}
+          <div className={`mb-6 ${isMobile ? 'space-y-4' : 'space-y-3'}`}>
+            
+            {/* Nama Input - Dipindah ke atas */}
             <div className={`flex ${isMobile ? 'gap-2' : 'gap-2'}`}>
               <Input
                 type="text"
@@ -716,6 +744,118 @@ export default function EventPage() {
                 </Button>
               )}
             </div>
+
+          {/* File Selection Button */}
+          <div className="flex items-center justify-center w-full">
+            <label className={`
+              flex flex-col items-center justify-center w-full cursor-pointer rounded-lg
+              border-2 border-dashed transition-all duration-200
+              ${uploadPhotoMutation.isPending 
+                ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
+                : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+              }
+              ${isMobile ? 'h-32' : 'h-28'}
+            `}>
+              <div className={`flex flex-col items-center justify-center text-center ${
+                isMobile ? 'px-4 py-6' : 'pt-4 pb-5'
+              }`}>
+                <Camera 
+                  className={`mb-3 transition-colors ${
+                    isMobile ? 'w-8 h-8' : 'w-7 h-7'
+                  } ${
+                    uploadPhotoMutation.isPending 
+                      ? 'text-gray-400' 
+                      : album === 'Tamu' ? 'text-wedding-rose' : 'text-wedding-sage'
+                  }`} 
+                />
+                <p className={`mb-1 font-medium ${
+                  isMobile ? 'text-sm' : 'text-sm'
+                } ${
+                  uploadPhotoMutation.isPending ? 'text-gray-400' : 'text-gray-700'
+                }`}>
+                  Pilih Foto
+                </p>
+                <p className="text-xs text-gray-500">
+                  JPG, PNG, WEBP, HEIC, RAW (maks. 15MB)
+                </p>
+              </div>
+              <input
+                type="file"
+                accept="image/*,.nef,.cr2,.arw,.dng,.raf"
+                onChange={handleFileSelect}
+                className="hidden"
+                disabled={uploadPhotoMutation.isPending}
+              />
+            </label>
+          </div>
+            
+            {/* Preview dan Upload Button */}
+            {selectedFile && (
+              <div className={`border rounded-lg p-3 bg-white ${isMobile ? 'space-y-3' : 'space-y-2'}`}>
+                <div className="flex items-start gap-3">
+                  {/* Thumbnail Preview */}
+                  {previewUrl && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={previewUrl} 
+                        alt="Preview" 
+                        className={`rounded object-cover ${
+                          isMobile ? 'w-16 h-16' : 'w-12 h-12'
+                        }`}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* File Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium text-gray-800 truncate ${
+                      isMobile ? 'text-sm' : 'text-xs'
+                    }`}>
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
+                    </p>
+                  </div>
+                  
+                  {/* Remove Button */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveSelectedFile}
+                    disabled={uploadPhotoMutation.isPending}
+                    className="flex-shrink-0 h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </Button>
+                </div>
+                
+                {/* Upload Button */}
+                <Button
+                  onClick={handleUploadSelectedFile}
+                  disabled={uploadPhotoMutation.isPending}
+                  className={`w-full ${
+                    album === 'Tamu' 
+                      ? 'bg-wedding-rose hover:bg-wedding-rose/90' 
+                      : 'bg-wedding-sage hover:bg-wedding-sage/90'
+                  } text-white ${isMobile ? 'h-11' : 'h-10'}`}
+                >
+                  {uploadPhotoMutation.isPending ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>Mengupload...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      <span>Upload Foto</span>
+                    </div>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
             
             {/* Simple Feedback - Only show when name is entered */}
             {uploaderName.trim() && (

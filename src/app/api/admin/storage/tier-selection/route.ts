@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         metadata,
         recommendations: {
           tier: tierSelection.tier,
-          reason: this.getTierSelectionReason(tierSelection, spaceCheck),
+          reason: getTierSelectionReason(tierSelection, spaceCheck),
           compression: tierSelection.compression,
           priority: tierSelection.priority
         }

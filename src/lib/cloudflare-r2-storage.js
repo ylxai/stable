@@ -148,9 +148,16 @@ class CloudflareR2Storage {
    * Generate public URL for file
    */
   generatePublicUrl(filePath) {
+    // Use custom domain if configured
     if (this.config.customDomain) {
       return `https://${this.config.customDomain}/${filePath}`;
-    } else {
+    }
+    // Use public URL from environment if set
+    else if (process.env.CLOUDFLARE_R2_PUBLIC_URL) {
+      return `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${filePath}`;
+    }
+    // Default to R2 public URL
+    else {
       return `https://pub-${this.config.accountId}.r2.dev/${filePath}`;
     }
   }
