@@ -7,6 +7,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import PhotoLightbox from "@/components/photo-lightbox";
 import { EventPageSkeleton, EventHeaderSkeleton, AccessCodeSkeleton } from "@/components/ui/enhanced-skeleton";
+import { OptimizedEventPageSkeleton } from "@/components/ui/optimized-skeleton";
+import { useSkeletonPerformance } from "@/hooks/use-skeleton-performance";
 
 // Custom hooks
 import { useEventData } from "@/hooks/use-event-data";
@@ -26,6 +28,14 @@ export default function EventPage() {
   const params = useParams();
   const id = params?.id as string;
   const isMobile = useIsMobile();
+  
+  // Performance monitoring for skeleton loading
+  const { metrics, getMetricsSummary, isTracking } = useSkeletonPerformance('EventPage', {
+    trackLayoutShifts: true,
+    trackAnimationFrames: true,
+    reportToAnalytics: process.env.NODE_ENV === 'production',
+    debugMode: process.env.NODE_ENV === 'development'
+  });
 
   // State management
   const [isCodeVerified, setIsCodeVerified] = useState(false);
@@ -108,9 +118,9 @@ export default function EventPage() {
     }
   };
 
-  // Loading state
+  // Loading state with optimized skeleton
   if (eventLoading) {
-    return <EventPageSkeleton />;
+    return <OptimizedEventPageSkeleton />;
   }
 
   // Error state

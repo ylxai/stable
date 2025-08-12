@@ -4,6 +4,8 @@ import { Camera, Heart } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { PhotoGridSkeleton } from "@/components/ui/enhanced-skeleton";
+import { OptimizedPhotoGridSkeleton } from "@/components/ui/optimized-skeleton";
+import { useSkeletonPerformance } from "@/hooks/use-skeleton-performance";
 import type { Photo } from "@/lib/database";
 
 interface PhotoGalleryProps {
@@ -16,9 +18,15 @@ interface PhotoGalleryProps {
 export default function PhotoGallery({ photos, albumName, isLoading, onPhotoClick }: PhotoGalleryProps) {
   const isMobile = useIsMobile();
   const albumPhotos = photos.filter(p => p.album_name === albumName);
+  
+  // Performance monitoring for photo gallery skeleton
+  const { getMetricsSummary } = useSkeletonPerformance(`PhotoGallery-${albumName}`, {
+    trackLayoutShifts: true,
+    debugMode: process.env.NODE_ENV === 'development'
+  });
 
   if (isLoading) {
-    return <PhotoGridSkeleton count={8} />;
+    return <OptimizedPhotoGridSkeleton count={8} adaptive={true} />;
   }
 
   if (albumPhotos.length === 0) {

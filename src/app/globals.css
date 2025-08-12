@@ -12,6 +12,87 @@
   }
 }
 
+/* Network-Aware Skeleton Optimizations */
+.skeleton-simple {
+  @apply bg-gray-200 rounded;
+}
+
+.skeleton-medium {
+  @apply bg-gray-200 rounded-md;
+}
+
+.skeleton-complex {
+  @apply bg-gray-200 rounded-lg;
+}
+
+/* Reduced motion for slow networks */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-animation {
+    animation: none;
+  }
+  
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Performance optimized animations */
+.shimmer-animation {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer-slide 2s infinite;
+}
+
+@keyframes shimmer-slide {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Slow network optimizations */
+.skeleton-slow-network {
+  animation-duration: 3s;
+  background: #f5f5f5;
+}
+
+.skeleton-slow-network::before {
+  display: none; /* Disable shimmer overlay */
+}
+
+/* Fast network optimizations */
+.skeleton-fast-network {
+  animation-duration: 1.5s;
+}
+
+/* Save data mode optimizations */
+.skeleton-save-data {
+  animation: none;
+  background: #f0f0f0;
+}
+
+/* GPU acceleration for smooth animations */
+.skeleton-gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  .skeleton-mobile-optimized {
+    animation-duration: 2.5s;
+  }
+  
+  .skeleton-mobile-optimized.skeleton-slow-network {
+    animation: none;
+    background: #f5f5f5;
+  }
+}
+
 @layer base {
   :root {
     --wedding-ivory: #faf9f6;
