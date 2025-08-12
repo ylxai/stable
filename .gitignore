@@ -155,3 +155,36 @@ TEST*.xml
 *.flv
 *.mov
 *.wmv
+
+# DSLR System - Sensitive Files
+DSLR-System/google-drive-tokens.json
+DSLR-System/google-drive-credentials.json
+DSLR-System/service-account-key.json
+DSLR-System/Config/google-drive-config.json
+DSLR-System/Config/storage-credentials.json
+DSLR-System/Storage/tokens/
+DSLR-System/Storage/credentials/
+DSLR-System/.env
+DSLR-System/.env.local
+DSLR-System/.env.production
+
+# DSLR System - Backup Files
+DSLR-System/Backup/dslr-backup/
+DSLR-System/Backup/local-backup/
+DSLR-System/Backup/*.jpg
+DSLR-System/Backup/*.jpeg
+DSLR-System/Backup/*.png
+DSLR-System/Backup/*.raw
+DSLR-System/Backup/*.cr2
+DSLR-System/Backup/*.nef
+
+# DSLR System - Log Files
+DSLR-System/logs/
+DSLR-System/*.log
+DSLR-System/Core/*.log
+DSLR-System/Storage/*.log
+
+# DSLR System - Temporary Files
+DSLR-System/tmp/
+DSLR-System/temp/
+DSLR-System/cache/
