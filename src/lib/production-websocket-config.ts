@@ -72,7 +72,7 @@ export function getWebSocketConfig() {
   if (isDevelopment) {
     return {
       ...PRODUCTION_WS_CONFIG,
-      serverUrl: process.env.NEXT_PUBLIC_SOCKETIO_URL || 'http://localhost:3001',
+      serverUrl: process.env.NEXT_PUBLIC_SOCKETIO_URL || 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com',
       healthCheckInterval: 60000, // Less frequent in dev
       fallbackPolling: {
         ...PRODUCTION_WS_CONFIG.fallbackPolling,

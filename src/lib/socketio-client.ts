@@ -48,7 +48,7 @@ class SocketIOClient {
   private isBackground: boolean = false;
   private networkType: string = 'unknown';
 
-  constructor(private url: string = 'http://localhost:3001') {
+  constructor(private url: string = 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com') {
     this.detectMobile();
     this.setupNetworkDetection();
     this.setupVisibilityHandling();
@@ -733,7 +733,7 @@ let socketIOClient: SocketIOClient | null = null;
 
 export function getSocketIOClient(): SocketIOClient {
   if (!socketIOClient) {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKETIO_URL || process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKETIO_URL || process.env.NEXT_PUBLIC_WS_URL || 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com';
     socketIOClient = new SocketIOClient(socketUrl);
   }
   return socketIOClient;

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { useSystemNotifications, useRealtimeProvider } from '@/lib/realtime-provider';
 import { 
   Monitor, 
   Server, 
@@ -67,6 +69,22 @@ interface SystemMetrics {
 }
 
 export default function SystemMonitor() {
+  // Real-time WebSocket integration
+  const {
+    notifications: systemNotifications,
+    isConnected: wsConnected,
+    unreadCount,
+    markAsRead,
+    clearNotifications,
+    provider
+  } = useSystemNotifications();
+
+  const {
+    provider: currentProvider,
+    isSocketIO,
+    features
+  } = useRealtimeProvider();
+
   const [metrics, setMetrics] = useState<SystemMetrics>({
     server: {
       status: 'online',
@@ -109,66 +127,54 @@ export default function SystemMonitor() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [useRealtime, setUseRealtime] = useState(true);
+
+  // Handle real-time system notifications
+  useEffect(() => {
+    if (useRealtime && systemNotifications.length > 0) {
+      console.log('🔄 Processing system notifications from WebSocket:', systemNotifications);
+      
+      // Process system notifications to update metrics
+      systemNotifications.forEach(notification => {
+        if (notification.type === 'system') {
+          // Update metrics based on notification content
+          if (notification.message.includes('storage')) {
+            setMetrics(prev => ({
+              ...prev,
+              storage: {
+                ...prev.storage,
+                status: notification.priority === 'critical' ? 'critical' : 
+                       notification.priority === 'high' ? 'warning' : 'normal'
+              }
+            }));
+          }
+          
+          if (notification.message.includes('backup')) {
+            setMetrics(prev => ({
+              ...prev,
+              database: {
+                ...prev.database,
+                lastBackup: new Date().toISOString()
+              }
+            }));
+          }
+        }
+      });
+    }
+  }, [systemNotifications, useRealtime]);
 
   // Fetch real system metrics
   useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        // Fetch DSLR status
-        const dslrResponse = await fetch('/api/dslr/status');
-        if (dslrResponse.ok) {
-          const dslrData = await dslrResponse.json();
-          setMetrics(prev => ({
-            ...prev,
-            dslr: {
-              serviceStatus: dslrData.serviceRunning ? 'running' : 'stopped',
-              cameraConnected: dslrData.isConnected || false,
-              uploadsToday: dslrData.totalUploaded || 0,
-              lastUpload: dslrData.lastUpload,
-              queueSize: dslrData.queueSize || 0
-            }
-          }));
-        }
-
-        // Fetch database status
-        const dbResponse = await fetch('/api/test/db');
-        if (dbResponse.ok) {
-          const dbData = await dbResponse.json();
-          setMetrics(prev => ({
-            ...prev,
-            database: {
-              ...prev.database,
-              status: dbData.success ? 'connected' : 'disconnected'
-            }
-          }));
-        }
-
-        // Simulate other metrics (in real app, these would come from monitoring APIs)
-        setMetrics(prev => ({
-          ...prev,
-          server: {
-            ...prev.server,
-            responseTime: Math.floor(Math.random() * 100) + 200,
-            lastCheck: new Date().toISOString()
-          },
-          performance: {
-            cpuUsage: Math.floor(Math.random() * 30) + 20,
-            memoryUsage: Math.floor(Math.random() * 40) + 50,
-            diskIO: Math.floor(Math.random() * 20) + 5,
-            networkIO: Math.floor(Math.random() * 15) + 3
-          }
-        }));
-
-      } catch (error) {
-        console.error('Failed to fetch system metrics:', error);
-      }
-    };
-
     // Initial fetch
     fetchMetrics();
 
     // Enhanced adaptive polling for system metrics
     const getPollingInterval = () => {
+      // If real-time is enabled and WebSocket is connected, use longer intervals
+      if (useRealtime && wsConnected) {
+        return 60000; // 60s when WebSocket is active
+      }
+      
       // Check if system is under high load
       const isHighLoad = metrics.performance.cpuUsage > 75 || metrics.performance.memoryUsage > 80;
       const hasActiveUploads = metrics.dslr.queueSize > 0 || metrics.dslr.serviceStatus === 'running';
@@ -176,28 +182,95 @@ export default function SystemMonitor() {
       if (isHighLoad || hasActiveUploads) {
         return 15000; // 15s during high activity
       } else {
-        return 45000; // 45s during normal operation (improved from 2min)
+        return 45000; // 45s during normal operation
       }
     };
     
-    const pollingInterval = getPollingInterval();
-    const interval = setInterval(fetchMetrics, pollingInterval);
-    
-    console.log(`📊 System Monitor polling: ${pollingInterval}ms (CPU: ${metrics.performance.cpuUsage}%, Memory: ${metrics.performance.memoryUsage}%)`);
-
-    return () => clearInterval(interval);
-  }, []);
+    // Only start polling if real-time is disabled or WebSocket is not connected
+    if (!useRealtime || !wsConnected) {
+      const pollingInterval = getPollingInterval();
+      const interval = setInterval(fetchMetrics, pollingInterval);
+      
+      console.log(`📊 System Monitor polling: ${pollingInterval}ms (Real-time: ${useRealtime}, WS: ${wsConnected})`);
+      
+      return () => clearInterval(interval);
+    } else {
+      console.log('📡 System Monitor using real-time WebSocket updates');
+    }
+  }, [useRealtime, wsConnected]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setLastRefresh(new Date());
     
     // Actually fetch new data
-    await fetchMetrics();
+    try {
+      await fetchMetrics();
+      
+      // Clear notifications if using real-time
+      if (useRealtime && wsConnected) {
+        markAsRead();
+      }
+    } catch (error) {
+      console.error('Failed to refresh metrics:', error);
+    }
     
     setTimeout(() => {
       setIsRefreshing(false);
     }, 500);
+  };
+
+  // Define fetchMetrics function outside useEffect so it can be called from handleRefresh
+  const fetchMetrics = async () => {
+    try {
+      // Fetch DSLR status
+      const dslrResponse = await fetch('/api/dslr/status');
+      if (dslrResponse.ok) {
+        const dslrData = await dslrResponse.json();
+        setMetrics(prev => ({
+          ...prev,
+          dslr: {
+            serviceStatus: dslrData.serviceRunning ? 'running' : 'stopped',
+            cameraConnected: dslrData.isConnected || false,
+            uploadsToday: dslrData.totalUploaded || 0,
+            lastUpload: dslrData.lastUpload,
+            queueSize: dslrData.queueSize || 0
+          }
+        }));
+      }
+
+      // Fetch database status
+      const dbResponse = await fetch('/api/test/db');
+      if (dbResponse.ok) {
+        const dbData = await dbResponse.json();
+        setMetrics(prev => ({
+          ...prev,
+          database: {
+            ...prev.database,
+            status: dbData.success ? 'connected' : 'disconnected'
+          }
+        }));
+      }
+
+      // Simulate other metrics (in real app, these would come from monitoring APIs)
+      setMetrics(prev => ({
+        ...prev,
+        server: {
+          ...prev.server,
+          responseTime: Math.floor(Math.random() * 100) + 200,
+          lastCheck: new Date().toISOString()
+        },
+        performance: {
+          cpuUsage: Math.floor(Math.random() * 30) + 20,
+          memoryUsage: Math.floor(Math.random() * 40) + 50,
+          diskIO: Math.floor(Math.random() * 20) + 5,
+          networkIO: Math.floor(Math.random() * 15) + 3
+        }
+      }));
+
+    } catch (error) {
+      console.error('Failed to fetch system metrics:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -282,6 +355,30 @@ export default function SystemMonitor() {
           <div className="text-sm text-gray-500">
             Last updated: {formatTimeAgo(lastRefresh.toISOString())}
           </div>
+          
+          {/* Real-time WebSocket Controls */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
+            <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-600">
+              {currentProvider} {wsConnected ? 'connected' : 'disconnected'}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={useRealtime}
+              onCheckedChange={setUseRealtime}
+              disabled={!wsConnected}
+            />
+            <span className="text-sm text-gray-600">Real-time</span>
+          </div>
+          
+          {unreadCount > 0 && (
+            <Badge variant="destructive" className="text-xs">
+              {unreadCount} alerts
+            </Badge>
+          )}
+          
           <Button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -542,6 +639,60 @@ export default function SystemMonitor() {
           )}
         </CardContent>
       </Card>
+
+      {/* Real-time System Notifications */}
+      {useRealtime && wsConnected && systemNotifications.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Real-time System Notifications
+              </div>
+              <Button
+                onClick={clearNotifications}
+                variant="outline"
+                size="sm"
+              >
+                Clear All
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {systemNotifications.slice(0, 10).map((notification, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    notification.priority === 'critical' ? 'bg-red-50 border-red-200' :
+                    notification.priority === 'high' ? 'bg-orange-50 border-orange-200' :
+                    notification.priority === 'medium' ? 'bg-yellow-50 border-yellow-200' :
+                    'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded ${
+                    notification.priority === 'critical' ? 'bg-red-100 text-red-600' :
+                    notification.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                    notification.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                    'bg-blue-100 text-blue-600'
+                  }`}>
+                    {notification.priority === 'critical' ? <XCircle className="h-4 w-4" /> :
+                     notification.priority === 'high' ? <AlertTriangle className="h-4 w-4" /> :
+                     <CheckCircle className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{notification.title}</p>
+                    <p className="text-xs text-gray-600">{notification.message}</p>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Real-time
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* System Alerts */}
       <Card>
