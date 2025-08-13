@@ -87,4 +87,21 @@ module.exports = {
     // Allow all for development flexibility
     '*'
   ],
+
+  // External WebSocket Configuration
+  env: {
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+    NEXT_PUBLIC_SOCKETIO_URL: process.env.NEXT_PUBLIC_SOCKETIO_URL,
+    NEXT_PUBLIC_USE_SOCKETIO: process.env.NEXT_PUBLIC_USE_SOCKETIO,
+  },
+  
+  // WebSocket proxy for development
+  async rewrites() {
+    return [
+      {
+        source: '/ws/:path*',
+        destination: 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/ws/:path*',
+      },
+    ];
+  },
 }

@@ -81,6 +81,7 @@
     "lucide-react": "^0.539.0",
     "next": "15.4.6",
     "next-themes": "^0.4.6",
+    "node-fetch": "^3.3.2",
     "postcss": "^8.5.6",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",
@@ -88,28 +89,28 @@
     "react-dom": "^19.1.1",
     "react-resizable-panels": "^3.0.4",
     "recharts": "^2.15.4",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.2",
     "vaul": "^1.1.2",
-    "yet-another-react-lightbox": "^3.25.0",
-    "ws": "^8.18.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "ws": "^8.18.3",
+    "yet-another-react-lightbox": "^3.25.0"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "nodemon": "^3.1.9",
-    "@types/ws": "^8.5.13",
-    "@types/socket.io": "^3.0.2",
-    "@types/socket.io-client": "^3.0.0",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
+    "@types/socket.io": "^3.0.2",
+    "@types/socket.io-client": "^3.0.0",
+    "@types/ws": "^8.5.13",
+    "concurrently": "^9.1.0",
     "eslint": "^9.33.0",
-    "eslint-config-next": "15.4.6"
+    "eslint-config-next": "15.4.6",
+    "nodemon": "^3.1.9"
   },
   "optionalDependencies": {
     "sharp": "^0.34.3"
