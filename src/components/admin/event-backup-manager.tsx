@@ -71,9 +71,38 @@ export function EventBackupManager({
     let interval: NodeJS.Timeout;
     
     if (isBackingUp && backupStatus?.backupId) {
+      // Enhanced adaptive polling for backup progress
+      const getBackupPollingInterval = () => {
+        if (!backupStatus) return 5000;
+        
+        // More frequent polling during critical phases
+        switch (backupStatus.status) {
+          case 'initializing':
+            return 1000; // 1s during initialization
+          case 'backing_up':
+            // Adaptive based on progress - faster when starting/ending
+            const progress = backupStatus.totalPhotos > 0 ? 
+              (backupStatus.processedPhotos / backupStatus.totalPhotos) : 0;
+            
+            if (progress < 0.1 || progress > 0.9) {
+              return 1500; // 1.5s during start/end phases
+            } else {
+              return 2500; // 2.5s during middle phase
+            }
+          case 'completed':
+          case 'failed':
+            return 10000; // 10s for final status (will stop anyway)
+          default:
+            return 3000; // 3s default
+        }
+      };
+      
+      const pollingInterval = getBackupPollingInterval();
       interval = setInterval(() => {
         pollBackupStatus(backupStatus.backupId);
-      }, 2000); // Poll every 2 seconds
+      }, pollingInterval);
+      
+      console.log(`📊 Event Backup Manager polling: ${pollingInterval}ms (Status: ${backupStatus?.status}, Progress: ${backupStatus ? Math.round((backupStatus.processedPhotos / backupStatus.totalPhotos) * 100) : 0}%)`);
     }
     
     return () => {

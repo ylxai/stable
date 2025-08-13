@@ -14,12 +14,23 @@
     "env:status": "node scripts/env-status.js",
     "ws:start": "node scripts/start-websocket-server.js",
     "ws:dev": "nodemon scripts/start-websocket-server.js",
+    "socketio:start": "node scripts/start-socketio-server.js",
+    "socketio:dev": "nodemon scripts/start-socketio-server.js",
     "dev:full": "concurrently \"pnpm run dev\" \"pnpm run ws:start\"",
+    "dev:socketio": "concurrently \"pnpm run dev\" \"pnpm run socketio:start\"",
+    "test:migration": "node scripts/test-socketio-migration.js",
+    "test:socketio": "NEXT_PUBLIC_USE_SOCKETIO=true pnpm run dev:socketio",
+    "test:websocket": "NEXT_PUBLIC_USE_SOCKETIO=false pnpm run dev:full",
     "cloudrun:build": "docker build -t hafiportrait .",
     "cloudrun:run": "docker run -p 8080:8080 hafiportrait",
     "install:all": "pnpm install && cd DSLR-System && pnpm install",
     "clean": "rm -rf node_modules pnpm-lock.yaml && cd DSLR-System && rm -rf node_modules pnpm-lock.yaml",
-    "fresh-install": "pnpm run clean && pnpm run install:all"
+    "fresh-install": "pnpm run clean && pnpm run install:all",
+    "koyeb:setup": "node scripts/setup-koyeb-deployment.js",
+    "koyeb:quick": "bash scripts/quick-koyeb-setup.sh",
+    "koyeb:deploy": "cd ws && koyeb app redeploy hafiportrait-websocket",
+    "koyeb:logs": "koyeb app logs hafiportrait-websocket",
+    "koyeb:status": "koyeb app get hafiportrait-websocket"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
@@ -84,12 +95,16 @@
     "typescript": "^5.9.2",
     "vaul": "^1.1.2",
     "yet-another-react-lightbox": "^3.25.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
     "nodemon": "^3.1.9",
     "@types/ws": "^8.5.13",
+    "@types/socket.io": "^3.0.2",
+    "@types/socket.io-client": "^3.0.0",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",

@@ -1,0 +1,77 @@
+# Koyeb Deployment Configuration for HafiPortrait WebSocket Service
+# Deploy WebSocket server on Koyeb with automatic scaling
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hafiportrait-websocket
+  labels:
+    app: hafiportrait-websocket
+    tier: backend
+spec:
+  type: web
+  ports:
+    - name: websocket
+      port: 3001
+      protocol: TCP
+    - name: health
+      port: 3002
+      protocol: TCP
+  regions:
+    - fra  # Frankfurt (closest to Europe)
+    - was  # Washington (US East)
+  scaling:
+    min: 1
+    max: 3
+  instance_type: nano  # Cost-effective for WebSocket
+  
+  # Build configuration
+  build:
+    type: docker
+    dockerfile: ws/Dockerfile
+    context: ws/
+    
+  # Environment variables
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: WS_PORT
+      value: "3001"
+    - name: HEALTH_PORT
+      value: "3002"
+    - name: HOST
+      value: "0.0.0.0"
+    - name: MAX_CONNECTIONS
+      value: "1000"
+    - name: HEARTBEAT_INTERVAL
+      value: "30000"
+    - name: PING_TIMEOUT
+      value: "120000"
+    - name: ENABLE_STATS_LOGGING
+      value: "true"
+    - name: STATS_INTERVAL
+      value: "30000"
+    - name: CORS_ORIGIN
+      value: "*"
+    - name: LOG_LEVEL
+      value: "info"
+      
+  # Health checks
+  health_checks:
+    - name: websocket-health
+      path: /health
+      port: 3002
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  # Resource limits
+  resources:
+    memory: 512Mi
+    cpu: 0.5
+    
+  # Auto-deploy on git push
+  git:
+    repository: https://github.com/your-username/hafiportrait-photography
+    branch: main
+    auto_deploy: true

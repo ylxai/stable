@@ -142,22 +142,40 @@ export function BackupStatusMonitor() {
     }
   };
 
-  // Auto-refresh with reduced frequency (fallback polling)
+  // Enhanced adaptive polling with better responsiveness
   useEffect(() => {
     // Initial load
     loadBackupStatus();
     
     let interval: NodeJS.Timeout;
     if (autoRefresh) {
-      interval = setInterval(() => {
-        // Only poll if not using real-time or WebSocket is disconnected
-        if (!useRealtime || !wsConnected) {
-          loadBackupStatus();
-        } else if (summary?.activeBackups && summary.activeBackups > 0) {
-          // Refresh WebSocket data if there are active backups
-          refreshStatus();
+      // Determine polling frequency based on activity and connection status
+      const getPollingInterval = () => {
+        if (useRealtime && wsConnected) {
+          // WebSocket connected - minimal polling for fallback
+          return summary?.activeBackups && summary.activeBackups > 0 ? 15000 : 60000; // 15s active, 1min idle
+        } else {
+          // WebSocket disconnected - aggressive polling for responsiveness
+          return summary?.activeBackups && summary.activeBackups > 0 ? 3000 : 10000; // 3s active, 10s idle
         }
-      }, 30000); // 30s for fallback polling (reduced from 10s)
+      };
+      
+      const startPolling = () => {
+        const pollingInterval = getPollingInterval();
+        
+        interval = setInterval(() => {
+          if (!useRealtime || !wsConnected) {
+            loadBackupStatus();
+          } else if (summary?.activeBackups && summary.activeBackups > 0) {
+            // Refresh WebSocket data if there are active backups
+            refreshStatus();
+          }
+        }, pollingInterval);
+        
+        console.log(`📊 Backup Status Monitor polling: ${pollingInterval}ms (${summary?.activeBackups || 0} active backups)`);
+      };
+      
+      startPolling();
     }
     
     return () => {

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { useDSLRRealtime } from '@/hooks/use-websocket-realtime';
+import { useDSLRRealtime, useRealtimeProvider } from '@/lib/realtime-provider';
 import { 
   Camera, 
   Upload, 
@@ -69,14 +69,25 @@ interface DSLRSettings {
 }
 
 export default function DSLRMonitor() {
-  // WebSocket real-time data
+  // Real-time data with automatic provider selection
   const { 
     isConnected: wsConnected, 
     dslrStatus: realtimeDslrStatus, 
     cameraStatus, 
     uploadProgress,
-    refreshStatus 
+    refreshStatus,
+    provider,
+    transport,
+    connectionMode
   } = useDSLRRealtime();
+
+  // Provider information
+  const { 
+    provider: currentProvider, 
+    isSocketIO, 
+    isWebSocket,
+    features 
+  } = useRealtimeProvider();
 
   const [stats, setStats] = useState<DSLRStats>({
     isConnected: false,
@@ -285,12 +296,25 @@ export default function DSLRMonitor() {
     // Initial fetch
     fetchDSLRStatus();
 
-    // Poll every 30 seconds as fallback (reduced frequency since WebSocket handles real-time)
+    // Enhanced adaptive polling based on DSLR activity and connection status
+    const getPollingInterval = () => {
+      if (useRealtime && wsConnected) {
+        // WebSocket connected - minimal polling for fallback
+        return stats.isProcessing || stats.queueSize > 0 ? 20000 : 60000; // 20s active, 1min idle
+      } else {
+        // WebSocket disconnected - aggressive polling for responsiveness
+        return stats.isProcessing || stats.queueSize > 0 ? 5000 : 15000; // 5s active, 15s idle
+      }
+    };
+    
+    const pollingInterval = getPollingInterval();
     const interval = setInterval(() => {
       if (!useRealtime || !wsConnected) {
         fetchDSLRStatus();
       }
-    }, 30000);
+    }, pollingInterval);
+    
+    console.log(`📊 DSLR Monitor polling: ${pollingInterval}ms (Processing: ${stats.isProcessing}, Queue: ${stats.queueSize})`);
 
     return () => clearInterval(interval);
   }, [useRealtime, wsConnected]);
@@ -389,7 +413,7 @@ export default function DSLRMonitor() {
                 {useRealtime && wsConnected && (
                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                     <Zap className="h-3 w-3 mr-1" />
-                    Real-time
+                    {isSocketIO ? 'Socket.IO' : 'WebSocket'}
                   </Badge>
                 )}
               </CardTitle>
@@ -401,7 +425,10 @@ export default function DSLRMonitor() {
                   className="text-xs"
                 >
                   <WifiIcon className="h-3 w-3 mr-1" />
-                  {wsConnected ? 'WebSocket Connected' : 'Polling Mode'}
+                  {wsConnected ? 
+                    `${currentProvider.toUpperCase()} Connected${transport ? ` (${transport})` : ''}` : 
+                    `Polling Mode (${currentProvider})`
+                  }
                 </Badge>
               </CardDescription>
             </div>

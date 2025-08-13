@@ -167,8 +167,23 @@ export default function SystemMonitor() {
     // Initial fetch
     fetchMetrics();
 
-    // Auto-refresh every 2 minutes (reduced frequency)
-    const interval = setInterval(fetchMetrics, 120000);
+    // Enhanced adaptive polling for system metrics
+    const getPollingInterval = () => {
+      // Check if system is under high load
+      const isHighLoad = metrics.performance.cpuUsage > 75 || metrics.performance.memoryUsage > 80;
+      const hasActiveUploads = metrics.dslr.queueSize > 0 || metrics.dslr.serviceStatus === 'running';
+      
+      if (isHighLoad || hasActiveUploads) {
+        return 15000; // 15s during high activity
+      } else {
+        return 45000; // 45s during normal operation (improved from 2min)
+      }
+    };
+    
+    const pollingInterval = getPollingInterval();
+    const interval = setInterval(fetchMetrics, pollingInterval);
+    
+    console.log(`📊 System Monitor polling: ${pollingInterval}ms (CPU: ${metrics.performance.cpuUsage}%, Memory: ${metrics.performance.memoryUsage}%)`);
 
     return () => clearInterval(interval);
   }, []);
