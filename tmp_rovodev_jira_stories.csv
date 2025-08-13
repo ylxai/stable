@@ -1,0 +1,256 @@
+Issue Type,Summary,Epic Link,Description,Story Points,Priority,Labels,Components,Assignee
+Story,Cloudflare R2 Integration,Smart Storage System,"## 📝 User Story
+As a system admin, I want photos automatically uploaded to Cloudflare R2 so that we have fast global CDN delivery with zero egress costs.
+
+## ✅ Acceptance Criteria
+- [ ] Configure R2 bucket with proper CORS settings
+- [ ] Implement upload API with error handling
+- [ ] Generate public URLs for photo access
+- [ ] Monitor storage usage and quotas
+- [ ] Handle upload failures with retry logic
+- [ ] Test with various image formats (JPG, RAW)
+
+## 🧪 Testing Notes
+- Test upload speed and reliability
+- Verify CDN performance globally
+- Check error handling scenarios",8,Highest,"storage,cloudflare,r2,api",Smart Storage Manager,
+Story,Google Drive Backup System,Smart Storage System,"## 📝 User Story
+As a photographer, I want automatic backup to Google Drive so that I have secure long-term storage for all event photos.
+
+## ✅ Acceptance Criteria
+- [ ] Setup Google Drive API authentication
+- [ ] Create folder structure by event
+- [ ] Implement batch upload for end-of-event backup
+- [ ] Monitor backup progress and status
+- [ ] Handle API rate limits and errors
+- [ ] Verify backup integrity
+
+## 🧪 Testing Notes
+- Test with large photo batches
+- Verify folder organization
+- Check authentication flow",5,High,"storage,google-drive,backup,api",Smart Storage Manager,
+Story,Local Storage Fallback,Smart Storage System,"## 📝 User Story
+As a system admin, I want local storage fallback so that uploads continue working even if cloud services are unavailable.
+
+## ✅ Acceptance Criteria
+- [ ] Implement local storage tier
+- [ ] Auto-fallback when cloud fails
+- [ ] Monitor local disk usage
+- [ ] Sync to cloud when available
+- [ ] Cleanup old local files
+- [ ] Alert on storage issues
+
+## 🧪 Testing Notes
+- Test fallback scenarios
+- Verify sync behavior
+- Check disk space management",3,Medium,"storage,local,fallback,reliability",Smart Storage Manager,
+Story,Storage Analytics Dashboard,Smart Storage System,"## 📝 User Story
+As an admin, I want storage analytics dashboard so that I can monitor usage, costs, and performance across all storage tiers.
+
+## ✅ Acceptance Criteria
+- [ ] Display storage usage by tier
+- [ ] Show cost savings metrics
+- [ ] Monitor upload/download speeds
+- [ ] Track error rates and failures
+- [ ] Generate usage reports
+- [ ] Set up alerts for quotas
+
+## 🧪 Testing Notes
+- Verify real-time data updates
+- Test alert thresholds
+- Check report accuracy",5,Medium,"analytics,dashboard,monitoring",Web Dashboard,
+Story,Auto Photo Detection,DSLR Auto Upload,"## 📝 User Story
+As a photographer, I want new photos automatically detected from my DSLR so that I don't need to manually upload each photo.
+
+## ✅ Acceptance Criteria
+- [ ] Monitor DSLR folder for new files
+- [ ] Detect JPG and RAW file formats
+- [ ] Filter out non-photo files
+- [ ] Trigger upload process immediately
+- [ ] Show real-time detection notifications
+- [ ] Handle multiple photos simultaneously
+
+## 🧪 Testing Notes
+- Test with various file formats
+- Verify detection speed
+- Check concurrent handling",5,High,"dslr,automation,detection,monitoring",DSLR Auto Upload,
+Story,Real-time Upload Service,DSLR Auto Upload,"## 📝 User Story
+As a photographer, I want photos uploaded in real-time so that guests can see new photos immediately during the event.
+
+## ✅ Acceptance Criteria
+- [ ] Upload photos within 30 seconds of detection
+- [ ] Show upload progress notifications
+- [ ] Handle upload queue management
+- [ ] Retry failed uploads automatically
+- [ ] Update web gallery in real-time
+- [ ] Maintain upload history log
+
+## 🧪 Testing Notes
+- Test upload speed under load
+- Verify queue management
+- Check real-time updates",8,Highest,"upload,realtime,queue,performance",DSLR Auto Upload,
+Story,Image Compression Pipeline,DSLR Auto Upload,"## 📝 User Story
+As a system admin, I want automatic image compression so that we optimize storage usage and loading speed without sacrificing quality.
+
+## ✅ Acceptance Criteria
+- [ ] Compress images based on storage tier
+- [ ] Generate multiple sizes (thumbnail, web, full)
+- [ ] Maintain EXIF data for originals
+- [ ] Optimize for web delivery
+- [ ] Preserve image quality settings
+- [ ] Monitor compression ratios
+
+## 🧪 Testing Notes
+- Test compression quality
+- Verify size optimization
+- Check EXIF preservation",5,High,"compression,optimization,image-processing",DSLR Auto Upload,
+Story,Watermark Processing,DSLR Auto Upload,"## 📝 User Story
+As a photographer, I want automatic watermark application so that my brand is protected on all shared photos.
+
+## ✅ Acceptance Criteria
+- [ ] Apply watermark to web-sized images
+- [ ] Preserve original without watermark
+- [ ] Configurable watermark position
+- [ ] Maintain image quality
+- [ ] Batch processing capability
+- [ ] Skip watermark for thumbnails
+
+## 🧪 Testing Notes
+- Test watermark positioning
+- Verify quality preservation
+- Check batch performance",3,Medium,"watermark,branding,image-processing",DSLR Auto Upload,
+Story,Event Creation & Setup,Event Management,"## 📝 User Story
+As an admin, I want to create new photography events so that I can organize photos and provide guest access.
+
+## ✅ Acceptance Criteria
+- [ ] Create event with name, date, description
+- [ ] Generate unique access code
+- [ ] Set event status (active/archived)
+- [ ] Configure photo upload settings
+- [ ] Set guest access permissions
+- [ ] Generate event URL
+
+## 🧪 Testing Notes
+- Test event creation flow
+- Verify unique code generation
+- Check access permissions",5,High,"events,crud,access-control",Event Management,
+Story,QR Code Generation,Event Management,"## 📝 User Story
+As a photographer, I want QR codes generated for each event so that guests can easily access their photos without typing URLs.
+
+## ✅ Acceptance Criteria
+- [ ] Generate QR code for event URL
+- [ ] Include access code in QR data
+- [ ] Provide downloadable QR image
+- [ ] Support different QR sizes
+- [ ] Test QR code scanning
+- [ ] Print-ready format
+
+## 🧪 Testing Notes
+- Test QR scanning on various devices
+- Verify URL encoding
+- Check print quality",3,Medium,"qr-codes,sharing,mobile",Event Management,
+Story,Guest Photo Access,Event Management,"## 📝 User Story
+As a guest, I want to access event photos with a simple code so that I can view and download my photos easily.
+
+## ✅ Acceptance Criteria
+- [ ] Access photos with event code
+- [ ] Browse photo gallery interface
+- [ ] View photos in lightbox
+- [ ] Download individual photos
+- [ ] Mobile-optimized interface
+- [ ] Share photos on social media
+
+## 🧪 Testing Notes
+- Test access code validation
+- Verify mobile experience
+- Check download functionality",8,High,"guest-access,gallery,mobile,sharing",Event Management,
+Story,Event Backup System,Event Management,"## 📝 User Story
+As an admin, I want to backup entire events to Google Drive so that I have secure long-term storage after events complete.
+
+## ✅ Acceptance Criteria
+- [ ] Backup all event photos to Google Drive
+- [ ] Create organized folder structure
+- [ ] Show backup progress
+- [ ] Verify backup completion
+- [ ] Archive event after backup
+- [ ] Generate backup reports
+
+## 🧪 Testing Notes
+- Test large event backup
+- Verify folder organization
+- Check backup integrity",5,Medium,"backup,google-drive,archival",Event Management,
+Story,Admin Authentication,Web Dashboard,"## 📝 User Story
+As an admin, I want secure login access so that only authorized users can manage the photography system.
+
+## ✅ Acceptance Criteria
+- [ ] Secure login with JWT tokens
+- [ ] Session management
+- [ ] Password requirements
+- [ ] Login attempt limiting
+- [ ] Logout functionality
+- [ ] Remember me option
+
+## 🧪 Testing Notes
+- Test security measures
+- Verify session handling
+- Check authentication flow",3,High,"authentication,security,admin",Web Dashboard,
+Story,Real-time System Monitoring,Web Dashboard,"## 📝 User Story
+As an admin, I want real-time system monitoring so that I can track uploads, storage usage, and system health.
+
+## ✅ Acceptance Criteria
+- [ ] Display real-time upload status
+- [ ] Show storage usage across tiers
+- [ ] Monitor DSLR connection status
+- [ ] Track system performance metrics
+- [ ] Alert on system issues
+- [ ] Historical data charts
+
+## 🧪 Testing Notes
+- Test real-time updates
+- Verify alert system
+- Check performance impact",8,High,"monitoring,realtime,dashboard,alerts",Web Dashboard,
+Story,Mobile Optimization,Web Dashboard,"## 📝 User Story
+As a user, I want the dashboard to work perfectly on mobile devices so that I can manage events from anywhere.
+
+## ✅ Acceptance Criteria
+- [ ] Responsive design for all screen sizes
+- [ ] Touch-friendly interface elements
+- [ ] Fast loading on mobile networks
+- [ ] Optimized images and assets
+- [ ] Mobile-specific navigation
+- [ ] Cross-browser compatibility
+
+## 🧪 Testing Notes
+- Test on various mobile devices
+- Verify touch interactions
+- Check loading performance",5,Medium,"mobile,responsive,optimization,ux",Web Dashboard,
+Story,Vercel Deployment Setup,Production Deployment,"## 📝 User Story
+As a developer, I want automated Vercel deployment so that the web application is accessible to users with zero downtime.
+
+## ✅ Acceptance Criteria
+- [ ] Configure Vercel project settings
+- [ ] Set up environment variables
+- [ ] Configure custom domain
+- [ ] Enable automatic deployments
+- [ ] Set up preview deployments
+- [ ] Monitor deployment status
+
+## 🧪 Testing Notes
+- Test deployment pipeline
+- Verify environment configs
+- Check domain configuration",3,Medium,"deployment,vercel,automation",Infrastructure,
+Story,CI/CD Pipeline Setup,Production Deployment,"## 📝 User Story
+As a developer, I want automated CI/CD pipeline so that code changes are tested and deployed safely.
+
+## ✅ Acceptance Criteria
+- [ ] Automated testing on pull requests
+- [ ] Code quality checks
+- [ ] Automated deployment to staging
+- [ ] Production deployment approval
+- [ ] Rollback capabilities
+- [ ] Deployment notifications
+
+## 🧪 Testing Notes
+- Test pipeline stages
+- Verify rollback process
+- Check notification system",5,Medium,"cicd,automation,testing,deployment",Infrastructure,

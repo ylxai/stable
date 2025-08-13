@@ -1,0 +1,86 @@
+Issue Type,Summary,Epic Name,Description,Priority,Labels,Components
+Epic,Smart Storage System,Storage Integration,"## 🎯 Epic Goal
+Implement multi-tier storage system with Cloudflare R2, Google Drive, and local backup for optimal cost and performance.
+
+## 📋 Success Criteria
+- [ ] Cloudflare R2 integration working (10GB free)
+- [ ] Google Drive backup system (15GB free)
+- [ ] Local storage fallback (50GB+)
+- [ ] Smart tier selection algorithm
+- [ ] Storage analytics dashboard
+- [ ] Cost optimization (90% savings achieved)
+
+## 🔗 Related Stories
+- R2 bucket configuration
+- Google Drive API integration
+- Storage monitoring system
+- Compression optimization
+- Backup automation",Highest,"storage,infrastructure,cost-optimization",Smart Storage Manager
+Epic,DSLR Auto Upload,Camera Integration,"## 🎯 Epic Goal
+Automatic photo detection, upload, and processing from DSLR camera to web gallery with real-time notifications.
+
+## 📋 Success Criteria
+- [ ] Auto-detect new photos from DSLR
+- [ ] Real-time upload to storage tiers
+- [ ] Image compression and optimization
+- [ ] Watermark processing
+- [ ] Upload status monitoring
+- [ ] Error handling and retry logic
+
+## 🔗 Related Stories
+- Photo detection service
+- Upload pipeline
+- Image processing
+- Notification system
+- Error handling",High,"dslr,automation,upload",DSLR Auto Upload
+Epic,Event Management,Event & Gallery,"## 🎯 Epic Goal
+Complete event lifecycle management from creation to guest access with QR codes and photo galleries.
+
+## 📋 Success Criteria
+- [ ] Event creation and configuration
+- [ ] QR code generation for easy sharing
+- [ ] Guest access code system
+- [ ] Photo gallery organization
+- [ ] Event backup to Google Drive
+- [ ] Event analytics and reporting
+
+## 🔗 Related Stories
+- Event CRUD operations
+- QR code generation
+- Guest access system
+- Gallery interface
+- Backup management",High,"events,gallery,qr-codes",Event Management
+Epic,Web Dashboard,Admin Interface,"## 🎯 Epic Goal
+Comprehensive admin dashboard for system monitoring, event management, and analytics with mobile optimization.
+
+## 📋 Success Criteria
+- [ ] Admin authentication system
+- [ ] Real-time system monitoring
+- [ ] Event management interface
+- [ ] Storage analytics dashboard
+- [ ] Mobile-responsive design
+- [ ] Performance optimization
+
+## 🔗 Related Stories
+- Admin login system
+- Dashboard components
+- Mobile optimization
+- Real-time updates
+- Analytics integration",High,"admin,dashboard,mobile",Web Dashboard
+Epic,Production Deployment,Infrastructure,"## 🎯 Epic Goal
+Production-ready deployment with CI/CD pipeline, monitoring, and scalable infrastructure setup.
+
+## 📋 Success Criteria
+- [ ] Vercel deployment configuration
+- [ ] Koyeb WebSocket setup
+- [ ] Environment management
+- [ ] CI/CD pipeline automation
+- [ ] Monitoring and alerts
+- [ ] Performance optimization
+
+## 🔗 Related Stories
+- Deployment automation
+- Environment configuration
+- Monitoring setup
+- Performance tuning
+- Security hardening",Medium,"deployment,infrastructure,cicd",Infrastructure
