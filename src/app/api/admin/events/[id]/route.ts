@@ -6,7 +6,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     const body = await request.json();
     
     const updatedEvent = await database.updateEvent(eventId, {
@@ -31,7 +33,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     
     await database.deleteEvent(eventId);
     

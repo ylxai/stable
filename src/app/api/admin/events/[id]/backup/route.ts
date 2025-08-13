@@ -10,7 +10,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+    const eventId = resolvedParams.id;
     const body = await request.json();
     
     console.log(`🎯 Starting backup for event: ${eventId}`);
@@ -37,7 +38,8 @@ export async function POST(
     });
     
   } catch (error: any) {
-    console.error(`❌ Backup failed for event ${params.id}:`, error);
+    const resolvedParams = await params;
+    console.error(`❌ Backup failed for event ${resolvedParams.id}:`, error);
     
     return NextResponse.json({
       success: false,
@@ -52,7 +54,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+    const eventId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const backupId = searchParams.get('backupId');
     
@@ -87,7 +90,8 @@ export async function GET(
     }
     
   } catch (error: any) {
-    console.error(`❌ Failed to get backup status for event ${params.id}:`, error);
+    const resolvedParams = await params;
+    console.error(`❌ Failed to get backup status for event ${resolvedParams.id}:`, error);
     
     return NextResponse.json({
       success: false,

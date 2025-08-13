@@ -11,7 +11,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { BasicLightbox } from "./ui/basic-lightbox";
 import { OptimizedImage } from "./ui/optimized-image";
 import { ProgressiveGallerySkeleton } from "./ui/gallery-skeleton";
-import { PhotoGridLoader, MorphingLoader, FloatingParticles } from "./ui/engaging-loading"; 
+import { PhotoGridLoader, MorphingLoader, FloatingParticles } from "./ui/engaging-loading-optimized"; 
 
 // --- BAGIAN INI UNTUK FRAMER-MOTION YANG DINONAKTIFKAN (SEBELUMNYA AKAN DIKEMBALIKAN JIKA ANDA INGIN ANIMASI) ---
 // import { motion, Easing } from "framer-motion"; 
@@ -62,7 +62,7 @@ export default function GallerySection() {
 
   return (
     <section id="gallery" className="py-20 bg-wedding-ivory relative overflow-hidden">
-      <FloatingParticles count={8} />
+      <FloatingParticles count={2} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           {/* Ganti motion.h2 dan motion.p dengan h2 dan p biasa */}
@@ -81,7 +81,7 @@ export default function GallerySection() {
             <div className="flex justify-center">
               <MorphingLoader />
             </div>
-            <PhotoGridLoader count={12} />
+            <PhotoGridLoader count={6} />
           </div>
         )}
 

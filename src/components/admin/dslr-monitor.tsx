@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { useDSLRRealtime } from '@/hooks/use-websocket-realtime';
 import { 
   Camera, 
   Upload, 
@@ -22,7 +23,9 @@ import {
   FolderOpen,
   Image,
   Save,
-  RotateCcw
+  RotateCcw,
+  Zap,
+  WifiIcon
 } from 'lucide-react';
 
 interface DSLRStats {
@@ -66,6 +69,15 @@ interface DSLRSettings {
 }
 
 export default function DSLRMonitor() {
+  // WebSocket real-time data
+  const { 
+    isConnected: wsConnected, 
+    dslrStatus: realtimeDslrStatus, 
+    cameraStatus, 
+    uploadProgress,
+    refreshStatus 
+  } = useDSLRRealtime();
+
   const [stats, setStats] = useState<DSLRStats>({
     isConnected: false,
     isProcessing: false,
@@ -106,8 +118,9 @@ export default function DSLRMonitor() {
   });
 
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
-
   const [availableEvents, setAvailableEvents] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [useRealtime, setUseRealtime] = useState(true);
 
   // DSLR Settings handlers
   const handleDslrSettingsChange = (key: keyof DSLRSettings, value: any) => {
@@ -161,41 +174,101 @@ export default function DSLRMonitor() {
     fetchEvents();
   }, []);
 
-  // Fetch real DSLR status from API
+  // Update stats from WebSocket real-time data
+  useEffect(() => {
+    if (useRealtime && realtimeDslrStatus) {
+      console.log('🔄 Updating DSLR stats from WebSocket:', realtimeDslrStatus);
+      setStats(prev => ({
+        ...prev,
+        isConnected: realtimeDslrStatus.isConnected || false,
+        isProcessing: realtimeDslrStatus.isProcessing || false,
+        totalUploaded: realtimeDslrStatus.totalUploaded || prev.totalUploaded,
+        failedUploads: realtimeDslrStatus.failedUploads || prev.failedUploads,
+        lastUpload: realtimeDslrStatus.lastUpload || prev.lastUpload,
+        watchFolder: realtimeDslrStatus.watchFolder || prev.watchFolder,
+        eventId: realtimeDslrStatus.eventId || prev.eventId,
+        uploaderName: realtimeDslrStatus.uploaderName || prev.uploaderName,
+        queueSize: realtimeDslrStatus.queueSize || 0,
+        uploadSpeed: realtimeDslrStatus.uploadSpeed || 0,
+        serviceRunning: realtimeDslrStatus.serviceRunning || false,
+        lastHeartbeat: realtimeDslrStatus.lastHeartbeat || prev.lastHeartbeat,
+        cameraModel: realtimeDslrStatus.cameraModel || prev.cameraModel,
+        autoDetect: realtimeDslrStatus.autoDetect !== undefined ? realtimeDslrStatus.autoDetect : prev.autoDetect,
+        backupEnabled: realtimeDslrStatus.backupEnabled !== undefined ? realtimeDslrStatus.backupEnabled : prev.backupEnabled,
+        notificationsEnabled: realtimeDslrStatus.notificationsEnabled !== undefined ? realtimeDslrStatus.notificationsEnabled : prev.notificationsEnabled,
+        watermarkEnabled: realtimeDslrStatus.watermarkEnabled !== undefined ? realtimeDslrStatus.watermarkEnabled : prev.watermarkEnabled
+      }));
+
+      // Update settings with current values
+      setSettings(prev => ({
+        ...prev,
+        eventId: realtimeDslrStatus.eventId || prev.eventId,
+        uploaderName: realtimeDslrStatus.uploaderName || prev.uploaderName,
+        watchFolder: realtimeDslrStatus.watchFolder || prev.watchFolder
+      }));
+    }
+  }, [realtimeDslrStatus, useRealtime]);
+
+  // Handle upload progress updates from WebSocket
+  useEffect(() => {
+    if (uploadProgress) {
+      console.log('📤 Upload progress update:', uploadProgress);
+      
+      // Add to recent uploads if completed
+      if (uploadProgress.status === 'completed') {
+        const newUpload: RecentUpload = {
+          id: `upload_${Date.now()}`,
+          fileName: uploadProgress.fileName || 'New Photo',
+          uploadTime: uploadProgress.timestamp || new Date().toISOString(),
+          fileSize: uploadProgress.fileSize || 0,
+          status: 'success',
+          photoUrl: uploadProgress.photoUrl
+        };
+        
+        setRecentUploads(prev => [newUpload, ...prev.slice(0, 9)]);
+      }
+    }
+  }, [uploadProgress]);
+
+  // Fallback: Fetch DSLR status from API when WebSocket is not available
   useEffect(() => {
     const fetchDSLRStatus = async () => {
       try {
         const response = await fetch('/api/dslr/status');
         if (response.ok) {
           const data = await response.json();
-          setStats(prev => ({
-            ...prev,
-            isConnected: data.isConnected || false,
-            isProcessing: data.isProcessing || false,
-            totalUploaded: data.totalUploaded || 0,
-            failedUploads: data.failedUploads || 0,
-            lastUpload: data.lastUpload || null,
-            watchFolder: data.watchFolder || prev.watchFolder,
-            eventId: data.eventId || prev.eventId,
-            uploaderName: data.uploaderName || prev.uploaderName,
-            queueSize: data.queueSize || 0,
-            uploadSpeed: data.uploadSpeed || 0,
-            serviceRunning: data.serviceRunning || false,
-            lastHeartbeat: data.lastHeartbeat || null,
-            cameraModel: data.cameraModel || prev.cameraModel,
-            autoDetect: data.autoDetect !== undefined ? data.autoDetect : prev.autoDetect,
-            backupEnabled: data.backupEnabled !== undefined ? data.backupEnabled : prev.backupEnabled,
-            notificationsEnabled: data.notificationsEnabled !== undefined ? data.notificationsEnabled : prev.notificationsEnabled,
-            watermarkEnabled: data.watermarkEnabled !== undefined ? data.watermarkEnabled : prev.watermarkEnabled
-          }));
           
-          // Update settings with current values
-          setSettings(prev => ({
-            ...prev,
-            eventId: data.eventId || prev.eventId,
-            uploaderName: data.uploaderName || prev.uploaderName,
-            watchFolder: data.watchFolder || prev.watchFolder
-          }));
+          // Only update if not using real-time or WebSocket is disconnected
+          if (!useRealtime || !wsConnected) {
+            setStats(prev => ({
+              ...prev,
+              isConnected: data.isConnected || false,
+              isProcessing: data.isProcessing || false,
+              totalUploaded: data.totalUploaded || 0,
+              failedUploads: data.failedUploads || 0,
+              lastUpload: data.lastUpload || null,
+              watchFolder: data.watchFolder || prev.watchFolder,
+              eventId: data.eventId || prev.eventId,
+              uploaderName: data.uploaderName || prev.uploaderName,
+              queueSize: data.queueSize || 0,
+              uploadSpeed: data.uploadSpeed || 0,
+              serviceRunning: data.serviceRunning || false,
+              lastHeartbeat: data.lastHeartbeat || null,
+              cameraModel: data.cameraModel || prev.cameraModel,
+              autoDetect: data.autoDetect !== undefined ? data.autoDetect : prev.autoDetect,
+              backupEnabled: data.backupEnabled !== undefined ? data.backupEnabled : prev.backupEnabled,
+              notificationsEnabled: data.notificationsEnabled !== undefined ? data.notificationsEnabled : prev.notificationsEnabled,
+              watermarkEnabled: data.watermarkEnabled !== undefined ? data.watermarkEnabled : prev.watermarkEnabled
+            }));
+            
+            // Update settings with current values
+            setSettings(prev => ({
+              ...prev,
+              eventId: data.eventId || prev.eventId,
+              uploaderName: data.uploaderName || prev.uploaderName,
+              watchFolder: data.watchFolder || prev.watchFolder
+            }));
+          }
         }
       } catch (error) {
         console.error('Failed to fetch DSLR status:', error);
@@ -212,14 +285,40 @@ export default function DSLRMonitor() {
     // Initial fetch
     fetchDSLRStatus();
 
-    // Poll every 5 seconds for real-time updates
-    const interval = setInterval(fetchDSLRStatus, 5000);
+    // Poll every 30 seconds as fallback (reduced frequency since WebSocket handles real-time)
+    const interval = setInterval(() => {
+      if (!useRealtime || !wsConnected) {
+        fetchDSLRStatus();
+      }
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [useRealtime, wsConnected]);
 
   const handlePauseResume = () => {
     setStats(prev => ({ ...prev, isProcessing: !prev.isProcessing }));
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    if (useRealtime && wsConnected) {
+      // Refresh WebSocket data
+      refreshStatus();
+    } else {
+      // Fetch from API
+      try {
+        const response = await fetch('/api/dslr/status');
+        if (response.ok) {
+          const data = await response.json();
+          setStats(prev => ({ ...prev, ...data }));
+        }
+      } catch (error) {
+        console.error('Failed to refresh DSLR status:', error);
+      }
+    }
+    
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   const handleSettingsUpdate = async () => {
@@ -286,13 +385,38 @@ export default function DSLRMonitor() {
               <CardTitle className="flex items-center gap-2">
                 <Camera className="h-5 w-5" />
                 <span className="truncate">DSLR Monitor</span>
+                {/* Real-time indicator */}
+                {useRealtime && wsConnected && (
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Real-time
+                  </Badge>
+                )}
               </CardTitle>
-              <CardDescription className="mt-1">
-                Monitor upload otomatis dari Nikon D7100
+              <CardDescription className="mt-1 flex items-center gap-2">
+                <span>Monitor upload otomatis dari Nikon D7100</span>
+                {/* Connection status */}
+                <Badge 
+                  variant={wsConnected ? "default" : "secondary"} 
+                  className="text-xs"
+                >
+                  <WifiIcon className="h-3 w-3 mr-1" />
+                  {wsConnected ? 'WebSocket Connected' : 'Polling Mode'}
+                </Badge>
               </CardDescription>
             </div>
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
+              {/* Real-time toggle */}
+              <div className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50">
+                <Switch
+                  checked={useRealtime}
+                  onCheckedChange={setUseRealtime}
+                  size="sm"
+                />
+                <span className="text-xs font-medium">Real-time</span>
+              </div>
+              
               <div className="flex items-center gap-2">
                 <Badge variant={stats.serviceRunning ? "default" : "destructive"} className="text-xs">
                   {stats.serviceRunning ? (
@@ -325,23 +449,35 @@ export default function DSLRMonitor() {
                 )}
               </div>
               
-              <Button
-                variant={stats.isProcessing ? "destructive" : "default"}
-                size="sm"
-                onClick={handlePauseResume}
-              >
-                {stats.isProcessing ? (
-                  <>
-                    <Pause className="h-4 w-4 mr-1" />
-                    <span className="hidden xs:inline">Pause</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-1" />
-                    <span className="hidden xs:inline">Resume</span>
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RotateCcw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden xs:inline">Refresh</span>
+                </Button>
+                
+                <Button
+                  variant={stats.isProcessing ? "destructive" : "default"}
+                  size="sm"
+                  onClick={handlePauseResume}
+                >
+                  {stats.isProcessing ? (
+                    <>
+                      <Pause className="h-4 w-4 mr-1" />
+                      <span className="hidden xs:inline">Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-1" />
+                      <span className="hidden xs:inline">Resume</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>

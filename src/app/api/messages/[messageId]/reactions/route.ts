@@ -6,7 +6,9 @@ export async function POST(
   { params }: { params: { messageId: string } }
 ) {
   try {
-    const messageId = params.messageId;
+    const resolvedParams = await params;
+
+    const messageId = resolvedParams.messageId;
     const body = await request.json();
     const { reactionType } = body;
 
@@ -44,7 +46,9 @@ export async function PATCH(
   { params }: { params: { messageId: string } }
 ) {
   try {
-    const messageId = params.messageId;
+    const resolvedParams = await params;
+
+    const messageId = resolvedParams.messageId;
     const body = await request.json();
     const { reactions } = body;
 

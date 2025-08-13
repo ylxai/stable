@@ -2,7 +2,7 @@
 
 /**
  * Backup Status Monitor Component
- * Provides global overview of all backup operations
+ * Provides global overview of all backup operations with WebSocket real-time updates
  */
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { useBackupRealtime } from '@/hooks/use-websocket-realtime';
 import { 
   Database, 
   RefreshCw, 
@@ -19,7 +21,9 @@ import {
   Clock, 
   ExternalLink,
   Trash2,
-  Activity
+  Activity,
+  Zap,
+  WifiIcon
 } from 'lucide-react';
 
 interface BackupSummary {
@@ -46,22 +50,87 @@ interface BackupStatus {
 }
 
 export function BackupStatusMonitor() {
+  // WebSocket real-time data
+  const { 
+    isConnected: wsConnected, 
+    backupStatus: realtimeBackupStatus, 
+    backupProgress, 
+    notifications,
+    refreshStatus,
+    clearNotifications 
+  } = useBackupRealtime();
+
   const [summary, setSummary] = useState<BackupSummary | null>(null);
   const [recentBackups, setRecentBackups] = useState<BackupStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [useRealtime, setUseRealtime] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load backup status
+  // Update from WebSocket real-time data
+  useEffect(() => {
+    if (useRealtime && realtimeBackupStatus) {
+      console.log('🔄 Updating backup status from WebSocket:', realtimeBackupStatus);
+      
+      // Calculate summary from real-time data
+      const allBackups = Array.isArray(realtimeBackupStatus) ? realtimeBackupStatus : [];
+      const newSummary = {
+        totalBackups: allBackups.length,
+        activeBackups: allBackups.filter(b => b.status === 'backing_up' || b.status === 'initializing').length,
+        completedBackups: allBackups.filter(b => b.status === 'completed').length,
+        failedBackups: allBackups.filter(b => b.status === 'failed').length,
+        totalPhotosBackedUp: allBackups.reduce((sum, b) => sum + (b.successfulUploads || 0), 0),
+        totalPhotosFailed: allBackups.reduce((sum, b) => sum + (b.failedUploads || 0), 0)
+      };
+      
+      setSummary(newSummary);
+      
+      // Get recent backups (last 10)
+      const recentBackups = allBackups
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .slice(0, 10);
+      
+      setRecentBackups(recentBackups);
+      setIsLoading(false);
+    }
+  }, [realtimeBackupStatus, useRealtime]);
+
+  // Handle real-time backup progress updates
+  useEffect(() => {
+    if (backupProgress) {
+      console.log('📊 Backup progress update:', backupProgress);
+      
+      // Update specific backup in recent backups
+      setRecentBackups(prev => prev.map(backup => 
+        backup.backupId === backupProgress.backupId 
+          ? {
+              ...backup,
+              status: backupProgress.status,
+              processedPhotos: backupProgress.processedPhotos,
+              successfulUploads: backupProgress.successfulUploads,
+              failedUploads: backupProgress.failedUploads
+            }
+          : backup
+      ));
+    }
+  }, [backupProgress]);
+
+  // Load backup status from API (fallback when WebSocket not available)
   const loadBackupStatus = async () => {
     try {
       setError(null);
+      setIsRefreshing(true);
+      
       const response = await fetch('/api/admin/backup/status');
       const result = await response.json();
       
       if (result.success) {
-        setSummary(result.data.summary);
-        setRecentBackups(result.data.recentBackups);
+        // Only update if not using real-time or WebSocket is disconnected
+        if (!useRealtime || !wsConnected) {
+          setSummary(result.data.summary);
+          setRecentBackups(result.data.recentBackups);
+        }
       } else {
         throw new Error(result.message || 'Failed to load backup status');
       }
@@ -69,26 +138,32 @@ export function BackupStatusMonitor() {
       setError(`Failed to load backup status: ${error.message}`);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  // Auto-refresh every 5 seconds if there are active backups
+  // Auto-refresh with reduced frequency (fallback polling)
   useEffect(() => {
+    // Initial load
     loadBackupStatus();
     
     let interval: NodeJS.Timeout;
     if (autoRefresh) {
       interval = setInterval(() => {
-        if (summary?.activeBackups && summary.activeBackups > 0) {
+        // Only poll if not using real-time or WebSocket is disconnected
+        if (!useRealtime || !wsConnected) {
           loadBackupStatus();
+        } else if (summary?.activeBackups && summary.activeBackups > 0) {
+          // Refresh WebSocket data if there are active backups
+          refreshStatus();
         }
-      }, 5000);
+      }, 30000); // 30s for fallback polling (reduced from 10s)
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, summary?.activeBackups]);
+  }, [autoRefresh, useRealtime, wsConnected, summary?.activeBackups]);
 
   // Clean up old backup statuses
   const cleanupOldBackups = async (maxAge: number = 7) => {
@@ -231,14 +306,39 @@ export function BackupStatusMonitor() {
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Database className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                 <span className="truncate">Recent Backup Operations</span>
+                {/* Real-time indicator */}
+                {useRealtime && wsConnected && (
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Real-time
+                  </Badge>
+                )}
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm mt-1">
-                Monitor ongoing and recent backup operations
+              <CardDescription className="text-xs sm:text-sm mt-1 flex items-center gap-2">
+                <span>Monitor ongoing and recent backup operations</span>
+                {/* Connection status */}
+                <Badge 
+                  variant={wsConnected ? "default" : "secondary"} 
+                  className="text-xs"
+                >
+                  <WifiIcon className="h-3 w-3 mr-1" />
+                  {wsConnected ? 'WebSocket' : 'Polling'}
+                </Badge>
               </CardDescription>
             </div>
             
             {/* Mobile-Optimized Controls */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+              {/* Real-time toggle */}
+              <div className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50">
+                <Switch
+                  checked={useRealtime}
+                  onCheckedChange={setUseRealtime}
+                  size="sm"
+                />
+                <span className="text-xs font-medium">Real-time</span>
+              </div>
+              
               {/* Mobile: Stacked buttons */}
               <div className="flex gap-2 sm:hidden">
                 <Button
@@ -253,10 +353,17 @@ export function BackupStatusMonitor() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => loadBackupStatus()}
+                  onClick={() => {
+                    if (useRealtime && wsConnected) {
+                      refreshStatus();
+                    } else {
+                      loadBackupStatus();
+                    }
+                  }}
+                  disabled={isRefreshing}
                   className="flex-1 text-xs"
                 >
-                  <RefreshCw className="h-3 w-3 mr-1" />
+                  <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
               </div>
@@ -270,6 +377,16 @@ export function BackupStatusMonitor() {
                   <Trash2 className="h-3 w-3 mr-1" />
                   Cleanup
                 </Button>
+                {notifications.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearNotifications}
+                    className="flex-1 text-xs"
+                  >
+                    Clear ({notifications.length})
+                  </Button>
+                )}
               </div>
               
               {/* Desktop: Horizontal buttons */}
@@ -286,10 +403,17 @@ export function BackupStatusMonitor() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => loadBackupStatus()}
+                  onClick={() => {
+                    if (useRealtime && wsConnected) {
+                      refreshStatus();
+                    } else {
+                      loadBackupStatus();
+                    }
+                  }}
+                  disabled={isRefreshing}
                   className="text-xs"
                 >
-                  <RefreshCw className="h-4 w-4 mr-1" />
+                  <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
                 <Button
@@ -301,6 +425,16 @@ export function BackupStatusMonitor() {
                   <Trash2 className="h-4 w-4 mr-1" />
                   Cleanup
                 </Button>
+                {notifications.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearNotifications}
+                    className="text-xs"
+                  >
+                    Clear Notifications ({notifications.length})
+                  </Button>
+                )}
               </div>
             </div>
           </div>

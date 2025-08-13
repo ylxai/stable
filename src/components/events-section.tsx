@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Camera, MapPin, Clock, ArrowRight, Play, CheckCircle, Clock3 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Users, Camera, MapPin, Clock, ArrowRight, Play, CheckCircle, Clock3, RefreshCw, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import type { Event } from "@/lib/database";
@@ -78,8 +79,12 @@ function getStatusBadge(status: 'live' | 'upcoming' | 'completed') {
 }
 
 export default function EventsSection() {
+  // Filter state for mobile navigation
+  const [activeFilter, setActiveFilter] = useState<'all' | 'live' | 'upcoming' | 'completed'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Menggunakan useQuery untuk mengambil data event
-  const { data: events, isLoading, isError, error } = useQuery<Event[]>({
+  const { data: events, isLoading, isError, error, refetch } = useQuery<Event[]>({
     queryKey: ['events'],
     queryFn: async () => {
       try {
@@ -105,24 +110,147 @@ export default function EventsSection() {
     }, // Ganti dengan endpoint API yang benar untuk mengambil event
   });
 
+  // Filter events based on active filter
+  const filteredEvents = events?.filter(event => {
+    if (activeFilter === 'all') return true;
+    const status = getEventStatus(event.date);
+    return status === activeFilter;
+  }) || [];
+
+  // Pull to refresh handler
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500); // Minimum loading time for UX
+    }
+  }, [refetch]);
+
+  // Get filter counts
+  const getFilterCounts = () => {
+    if (!events) return { all: 0, live: 0, upcoming: 0, completed: 0 };
+    
+    return {
+      all: events.length,
+      live: events.filter(e => getEventStatus(e.date) === 'live').length,
+      upcoming: events.filter(e => getEventStatus(e.date) === 'upcoming').length,
+      completed: events.filter(e => getEventStatus(e.date) === 'completed').length,
+    };
+  };
+
+  const filterCounts = getFilterCounts();
+
   // LOG BARU: Pastikan status dan data sebelum render
   console.log("EventsSection: Status Render", {
     isLoading,
     isError,
     eventsLength: events?.length,
-    eventsData: events // Tampilkan data jika ada
+    filteredLength: filteredEvents.length,
+    activeFilter,
+    filterCounts
   });
 
   return (
     <section id="events" className="py-16 md:py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4"> 
-            Event Terbaru
-          </h2>
-          <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-            Lihat event-event terbaru yang telah menggunakan layanan kami
-          </p>
+        <div className="text-center mb-8 md:mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2"> 
+                Event Terbaru
+              </h2>
+              <p className="text-lg md:text-xl text-gray-600">
+                Lihat event-event terbaru yang telah menggunakan layanan kami
+              </p>
+            </div>
+            {/* Refresh Button */}
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              className="ml-4 h-9 w-9 p-0 rounded-full border-wedding-gold/30 hover:border-wedding-gold hover:bg-wedding-gold/10"
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`w-4 h-4 text-wedding-gold ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile-First Filter Tabs */}
+        <div className="mb-6 md:mb-8">
+          <Tabs value={activeFilter} onValueChange={(value) => setActiveFilter(value as any)} className="w-full">
+            <div className="relative">
+              {/* Pull to Refresh Indicator */}
+              {isRefreshing && (
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+                  <RefreshCw className="w-4 h-4 text-wedding-gold animate-spin" />
+                </div>
+              )}
+              
+              {/* Sticky Filter Tabs */}
+              <div className="sticky top-16 bg-white/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4">
+                <TabsList className="grid w-full grid-cols-4 h-10 md:h-12 bg-gray-100 rounded-xl p-1">
+                  <TabsTrigger 
+                    value="all" 
+                    className="text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-wedding-gold transition-all duration-200"
+                  >
+                    <span className="flex items-center gap-1">
+                      <Filter className="w-3 h-3 md:w-4 md:h-4" />
+                      All
+                      {filterCounts.all > 0 && (
+                        <span className="bg-gray-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-4 flex items-center justify-center">
+                          {filterCounts.all}
+                        </span>
+                      )}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="live" 
+                    className="text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-red-500 transition-all duration-200"
+                  >
+                    <span className="flex items-center gap-1">
+                      <Play className="w-3 h-3 md:w-4 md:h-4" />
+                      Live
+                      {filterCounts.live > 0 && (
+                        <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-4 flex items-center justify-center animate-pulse">
+                          {filterCounts.live}
+                        </span>
+                      )}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="upcoming" 
+                    className="text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-500 transition-all duration-200"
+                  >
+                    <span className="flex items-center gap-1">
+                      <Clock3 className="w-3 h-3 md:w-4 md:h-4" />
+                      Soon
+                      {filterCounts.upcoming > 0 && (
+                        <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-4 flex items-center justify-center">
+                          {filterCounts.upcoming}
+                        </span>
+                      )}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="completed" 
+                    className="text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-green-500 transition-all duration-200"
+                  >
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />
+                      Done
+                      {filterCounts.completed > 0 && (
+                        <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-4 flex items-center justify-center">
+                          {filterCounts.completed}
+                        </span>
+                      )}
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+          </Tabs>
         </div>
         
         {isLoading && (
@@ -295,7 +423,7 @@ export default function EventsSection() {
         )}
         
         {/* Mobile Scroll Indicator */}
-        {!isLoading && !isError && events && events.length > 2 && (
+        {!isLoading && !isError && filteredEvents.length > 2 && (
           <div className="md:hidden text-center mt-4">
             <p className="text-xs text-gray-500 flex items-center justify-center">
               <ArrowRight className="w-3 h-3 mr-1 animate-pulse" />
@@ -303,6 +431,7 @@ export default function EventsSection() {
             </p>
           </div>
         )}
+
       </div>
     </section>
   );

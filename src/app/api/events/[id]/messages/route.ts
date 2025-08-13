@@ -5,7 +5,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const eventId = params.id;
+  const resolvedParams = await params;
+
+  const eventId = resolvedParams.id;
 
   if (!eventId) {
     return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -27,7 +29,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const eventId = params.id;
+  const resolvedParams = await params;
+
+  const eventId = resolvedParams.id;
 
   if (!eventId) {
     return NextResponse.json({ error: "Event ID is required" }, { status: 400 });

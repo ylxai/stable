@@ -186,7 +186,7 @@ export function SmartNotificationManager({
 
     // Check conditions on mount and every 5 minutes
     checkEventConditions();
-    const interval = setInterval(checkEventConditions, 5 * 60 * 1000);
+    const interval = setInterval(checkEventConditions, 10 * 60 * 1000); // Reduced from 5min to 10min
 
     return () => clearInterval(interval);
   }, [events, onStatusChange, triggerStatusChange, triggerAutoStatus, showSuccess]);

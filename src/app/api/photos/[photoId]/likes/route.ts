@@ -6,7 +6,9 @@ export async function PATCH(
   { params }: { params: { photoId: string } }
 ) {
   try {
-    const photoId = params.photoId;
+    const resolvedParams = await params;
+
+    const photoId = resolvedParams.photoId;
     const body = await request.json();
     const { likes } = body;
 

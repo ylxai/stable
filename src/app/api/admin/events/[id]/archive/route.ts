@@ -10,7 +10,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     const body = await request.json();
     const { backupId } = body;
     
@@ -39,7 +41,7 @@ export async function POST(
     });
     
   } catch (error: any) {
-    console.error(`❌ Archive failed for event ${params.id}:`, error);
+    console.error(`❌ Archive failed for event ${resolvedParams.id}:`, error);
     
     return NextResponse.json({
       success: false,
@@ -54,7 +56,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     
     // Get event archive status from database
     const { smartDatabase } = await import('@/lib/database-with-smart-storage');
@@ -81,7 +85,7 @@ export async function GET(
     });
     
   } catch (error: any) {
-    console.error(`❌ Failed to get archive status for event ${params.id}:`, error);
+    console.error(`❌ Failed to get archive status for event ${resolvedParams.id}:`, error);
     
     return NextResponse.json({
       success: false,
@@ -96,7 +100,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     
     console.log(`🔄 Unarchiving event: ${eventId}`);
     
@@ -121,7 +127,7 @@ export async function DELETE(
     });
     
   } catch (error: any) {
-    console.error(`❌ Unarchive failed for event ${params.id}:`, error);
+    console.error(`❌ Unarchive failed for event ${resolvedParams.id}:`, error);
     
     return NextResponse.json({
       success: false,

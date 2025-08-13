@@ -6,7 +6,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     const body = await request.json();
     const { accessCode } = body;
 

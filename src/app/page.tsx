@@ -24,9 +24,9 @@ export default function HomePage() {
         <Header />
         <main className="relative">
           <HeroSlideshow 
-            className="min-h-screen"
+            className="h-[70vh] md:min-h-screen"
             autoplay={true}
-            interval={5000}
+            interval={6000}
             showControls={true}
           />
           <EventsSection />

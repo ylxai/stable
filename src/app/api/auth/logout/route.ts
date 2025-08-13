@@ -9,7 +9,7 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionId = cookieStore.get('admin_session')?.value;
 
     if (!sessionId) {
@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear session cookie
-    cookieStore.set('admin_session', '', {
+    const cookieStoreForClear = await cookies();
+    cookieStoreForClear.set('admin_session', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

@@ -12,6 +12,9 @@
     "env:prod": "node scripts/setup-prod-env.js",
     "env:staging": "node scripts/setup-staging-env.js",
     "env:status": "node scripts/env-status.js",
+    "ws:start": "node scripts/start-websocket-server.js",
+    "ws:dev": "nodemon scripts/start-websocket-server.js",
+    "dev:full": "concurrently \"pnpm run dev\" \"pnpm run ws:start\"",
     "cloudrun:build": "docker build -t hafiportrait .",
     "cloudrun:run": "docker run -p 8080:8080 hafiportrait",
     "install:all": "pnpm install && cd DSLR-System && pnpm install",
@@ -80,9 +83,13 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.2",
     "vaul": "^1.1.2",
-    "yet-another-react-lightbox": "^3.25.0"
+    "yet-another-react-lightbox": "^3.25.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
+    "nodemon": "^3.1.9",
+    "@types/ws": "^8.5.13",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",

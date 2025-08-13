@@ -15,7 +15,7 @@ export async function OPTIONS() {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionId = cookieStore.get('admin_session')?.value;
 
     if (!sessionId) {
@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
     
     if (!user) {
       // Clear invalid session cookie
-      cookieStore.set('admin_session', '', {
+      const cookieStoreForClear = await cookies();
+      cookieStoreForClear.set('admin_session', '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

@@ -42,10 +42,8 @@ import StatsCards from "@/components/admin/StatsCards";
 import { EventStatusSummary } from "@/components/admin/event-status-summary";
 import { AutoStatusManager } from "@/components/admin/auto-status-manager";
 import { SmartNotificationManager } from "@/components/admin/smart-notification-manager";
-import DSLRMonitor from "@/components/admin/dslr-monitor";
 import NotificationManager from "@/components/admin/notification-manager";
-import SystemMonitor from "@/components/admin/system-monitor";
-import { BackupStatusMonitor } from "@/components/admin/backup-status-monitor";
+import { LazySystemMonitor, LazyDSLRMonitor, LazyBackupStatusMonitor } from "@/components/admin/lazy-system-monitor";
 import { ColorPaletteProvider } from "@/components/ui/color-palette-provider";
 import { ColorPaletteSwitcher } from "@/components/ui/color-palette-switcher";
 import NotificationBell from "@/components/ui/notification-bell";
@@ -119,6 +117,11 @@ export default function AdminDashboardGrouped() {
       const response = await apiRequest("GET", "/api/admin/stats");
       return response.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
   });
 
   // Fetch events
@@ -128,6 +131,11 @@ export default function AdminDashboardGrouped() {
       const response = await apiRequest("GET", "/api/admin/events");
       return response.json() as Promise<Event[]>;
     },
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
   });
 
   // Create event mutation
@@ -237,6 +245,10 @@ export default function AdminDashboardGrouped() {
       const response = await apiRequest("GET", "/api/admin/photos/homepage");
       return response.json();
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    enabled: selectedPhotoTab === 'homepage', // Only fetch when tab is active
   });
 
   // Fetch slideshow photos
@@ -246,6 +258,10 @@ export default function AdminDashboardGrouped() {
       const response = await apiRequest("GET", "/api/admin/slideshow");
       return response.json();
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    enabled: selectedPhotoTab === 'slideshow', // Only fetch when tab is active
   });
 
   // Fetch photos for selected event
@@ -256,7 +272,10 @@ export default function AdminDashboardGrouped() {
       const response = await apiRequest("GET", `/api/events/${selectedEventForPhotos}/photos`);
       return response.json();
     },
-    enabled: !!selectedEventForPhotos,
+    enabled: !!selectedEventForPhotos && selectedPhotoTab === 'events',
+    staleTime: 1 * 60 * 1000, // 1 minute
+    cacheTime: 3 * 60 * 1000, // 3 minutes
+    refetchOnWindowFocus: false,
   });
 
   // Add photo to slideshow mutation
@@ -1448,7 +1467,7 @@ export default function AdminDashboardGrouped() {
                     </CardContent>
                   </Card>
                 )}
-                {activeSubTab === 'dslr' && <DSLRMonitor />}
+                {activeSubTab === 'dslr' && <LazyDSLRMonitor />}
               </TabsContent>
 
               {/* SYSTEM TAB */}
@@ -1479,7 +1498,7 @@ export default function AdminDashboardGrouped() {
 
                 {/* System Content */}
                 {activeSubTab === 'notifications' && <NotificationManager />}
-                {activeSubTab === 'monitoring' && <SystemMonitor />}
+                {activeSubTab === 'monitoring' && <LazySystemMonitor />}
                 {activeSubTab === 'backup' && (
                   <div className="space-y-6">
                     {/* Mobile-Optimized Header */}
@@ -1507,7 +1526,7 @@ export default function AdminDashboardGrouped() {
                     </div>
                     
                     {/* BackupStatusMonitor Component */}
-                    <BackupStatusMonitor />
+                    <LazyBackupStatusMonitor />
                   </div>
                 )}
               </TabsContent>

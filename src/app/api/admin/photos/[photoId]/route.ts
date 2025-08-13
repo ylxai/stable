@@ -6,7 +6,8 @@ export async function DELETE(
   { params }: { params: { photoId: string } }
 ) {
   try {
-    const photoId = params.photoId;
+    const resolvedParams = await params;
+    const photoId = resolvedParams.photoId;
 
     if (!photoId) {
       return NextResponse.json({ message: 'Photo ID is required' }, { status: 400 });

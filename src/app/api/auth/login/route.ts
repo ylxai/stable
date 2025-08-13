@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Set session cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('admin_session', sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

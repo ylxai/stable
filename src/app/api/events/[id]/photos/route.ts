@@ -8,7 +8,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const eventId = params.id;
+  const resolvedParams = await params;
+  const eventId = resolvedParams.id;
 
   if (!eventId) {
     return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -28,7 +29,8 @@ export async function GET(
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+    const eventId = resolvedParams.id;
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const uploaderName = formData.get('uploaderName') as string || 'Anonymous';

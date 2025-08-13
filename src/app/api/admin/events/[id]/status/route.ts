@@ -6,7 +6,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     const { status } = await request.json();
     
     // Validate status
@@ -39,7 +41,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const eventId = params.id;
+    const resolvedParams = await params;
+
+    const eventId = resolvedParams.id;
     
     // Get event with status and statistics
     const eventWithStats = await database.getEventWithStats(eventId);

@@ -167,8 +167,8 @@ export default function SystemMonitor() {
     // Initial fetch
     fetchMetrics();
 
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchMetrics, 30000);
+    // Auto-refresh every 2 minutes (reduced frequency)
+    const interval = setInterval(fetchMetrics, 120000);
 
     return () => clearInterval(interval);
   }, []);
@@ -177,10 +177,12 @@ export default function SystemMonitor() {
     setIsRefreshing(true);
     setLastRefresh(new Date());
     
-    // Simulate refresh delay
+    // Actually fetch new data
+    await fetchMetrics();
+    
     setTimeout(() => {
       setIsRefreshing(false);
-    }, 1000);
+    }, 500);
   };
 
   const getStatusColor = (status: string) => {

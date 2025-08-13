@@ -6,7 +6,9 @@ export async function POST(
   { params }: { params: { messageId: string } }
 ) {
   try {
-    const messageId = params.messageId;
+    const resolvedParams = await params;
+
+    const messageId = resolvedParams.messageId;
     
     // Get current message to increment hearts
     const message = await database.getMessageById(messageId);
@@ -39,7 +41,9 @@ export async function PATCH(
   { params }: { params: { messageId: string } }
 ) {
   try {
-    const messageId = params.messageId;
+    const resolvedParams = await params;
+
+    const messageId = resolvedParams.messageId;
     const body = await request.json();
     const { hearts } = body;
 

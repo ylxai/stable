@@ -24,6 +24,14 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Mrs+Saint+Delafield&display=swap" 
           rel="stylesheet" 
         />
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Fleur+De+Leah&display=swap" 
+          rel="stylesheet" 
+        />
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Edu+TAS+Beginner:wght@400..700&family=Fleur+De+Leah&display=swap" 
+          rel="stylesheet" 
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
