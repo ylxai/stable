@@ -162,7 +162,7 @@ export default function EventsSection() {
                     const statusB = getEventStatus(b.date);
                     return statusOrder[statusA] - statusOrder[statusB];
                   })
-                  .map((event) => {
+                  .map((event, index) => {
                     const eventStatus = getEventStatus(event.date);
                     const statusBadge = getStatusBadge(eventStatus);
                     
@@ -226,7 +226,7 @@ export default function EventsSection() {
                   const statusB = getEventStatus(b.date);
                   return statusOrder[statusA] - statusOrder[statusB];
                 })
-                .map((event) => {
+                .map((event, index) => {
                   const eventStatus = getEventStatus(event.date);
                   const statusBadge = getStatusBadge(eventStatus);
               

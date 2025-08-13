@@ -1,14 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // Create Supabase client for client-side operations
-export const supabase = createClient(
+export const supabase = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // Create Supabase admin client for server-side operations
 // Pastikan ini diekspor langsung agar 'database' bisa menggunakannya
-export const supabaseAdmin = createClient(
+export const supabaseAdmin = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
@@ -18,6 +18,20 @@ export const supabaseAdmin = createClient(
     }
   }
 );
+
+// Export createClient function for API routes
+export function createClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+}
 
 // Storage bucket name
 export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'photos'; // Menggunakan default 'photos'

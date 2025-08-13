@@ -5,17 +5,42 @@ import { Camera, Heart, Star, Sparkles, Image, Users } from 'lucide-react';
 
 // Floating particles animation
 export function FloatingParticles({ count = 6 }: { count?: number }) {
+  const [particles, setParticles] = useState<Array<{
+    left: number;
+    top: number;
+    delay: number;
+    duration: number;
+  }>>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    // Generate consistent random positions on client side only
+    const newParticles = Array.from({ length: count }).map(() => ({
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 3 + Math.random() * 2
+    }));
+    setParticles(newParticles);
+  }, [count]);
+
+  // Don't render particles on server to avoid hydration mismatch
+  if (!isClient) {
+    return <div className="absolute inset-0 overflow-hidden pointer-events-none" />;
+  }
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: count }).map((_, i) => (
+      {particles.map((particle, i) => (
         <div
           key={i}
           className="absolute animate-float opacity-20"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 2}s`,
-            animationDuration: `${3 + Math.random() * 2}s`
+            left: `${particle.left}%`,
+            top: `${particle.top}%`,
+            animationDelay: `${particle.delay}s`,
+            animationDuration: `${particle.duration}s`
           }}
         >
           {i % 3 === 0 && <Camera className="w-4 h-4 text-wedding-gold" />}

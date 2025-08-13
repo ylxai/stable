@@ -24,6 +24,27 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Bilbo+Swash+Caps&family=Mrs+Saint+Delafield&display=swap" 
           rel="stylesheet" 
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress Chrome extension errors
+              window.addEventListener('error', function(e) {
+                if (e.filename && (e.filename.includes('contentScript.js') || e.filename.includes('injected.js'))) {
+                  e.preventDefault();
+                  return false;
+                }
+              });
+              
+              // Suppress unhandled promise rejections from extensions
+              window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.stack && (e.reason.stack.includes('contentScript') || e.reason.stack.includes('injected'))) {
+                  e.preventDefault();
+                  return false;
+                }
+              });
+            `
+          }}
+        />
       </head>
       <body className="font-sans antialiased">
         <Providers>
