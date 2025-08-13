@@ -1,0 +1,6 @@
+Issue Type,Summary,Epic Link,Description,Story Points,Priority,Labels
+Story,Cloudflare R2 Integration,Smart Storage System,As a system admin I want photos automatically uploaded to Cloudflare R2 so that we have fast global CDN delivery,8,Highest,storage
+Story,Google Drive Backup System,Smart Storage System,As a photographer I want automatic backup to Google Drive so that I have secure long-term storage for all event photos,5,High,storage
+Story,Local Storage Fallback,Smart Storage System,As a system admin I want local storage fallback so that uploads continue working even if cloud services are unavailable,3,Medium,storage
+Story,Auto Photo Detection,DSLR Auto Upload,As a photographer I want new photos automatically detected from my DSLR so that I dont need to manually upload each photo,5,High,dslr
+Story,Real-time Upload Service,DSLR Auto Upload,As a photographer I want photos uploaded in real-time so that guests can see new photos immediately during the event,8,Highest,upload
