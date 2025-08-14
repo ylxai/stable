@@ -30,7 +30,41 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ className = '' }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([
+    // Dummy notifications for testing
+    {
+      id: 'dummy-1',
+      type: 'upload_success',
+      title: '📸 Foto Berhasil Diupload',
+      message: 'test-photo.jpg berhasil diupload ke Test Event',
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      priority: 'medium',
+      category: 'upload',
+      metadata: {
+        fileName: 'test-photo.jpg',
+        eventName: 'Test Event'
+      }
+    },
+    {
+      id: 'dummy-2',
+      type: 'storage_warning',
+      title: '⚠️ Storage Hampir Penuh',
+      message: 'Storage sudah mencapai 85% kapasitas',
+      timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+      isRead: false,
+      priority: 'high',
+      category: 'system',
+      metadata: {
+        percentage: 85
+      }
+    }
+  ]);
+
+  // Debug logging
+  useEffect(() => {
+    // Debug info available in browser dev tools
+  }, [isOpen, notifications.length, unreadCount]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const hasUnread = unreadCount > 0;
@@ -204,7 +238,9 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
     <div className={`relative ${className}`}>
       {/* Bell Button - Mobile Optimized */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+        }}
         className={`
           relative p-3 rounded-full transition-all duration-200 
           min-h-[48px] min-w-[48px] flex items-center justify-center
@@ -239,17 +275,22 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
         <>
           {/* Mobile Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 bg-black/30 z-[9998]"
+            onClick={() => {
+              setIsOpen(false);
+            }}
           />
           
           {/* Notification Panel */}
-          <div className="
-            fixed top-16 right-2 left-2 z-50 sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:left-auto
-            w-auto sm:w-screen sm:max-w-sm lg:max-w-md
-            bg-white rounded-lg shadow-xl border
-            max-h-[85vh] sm:max-h-[80vh] overflow-hidden
-          ">
+          <div 
+            className="
+              fixed top-20 right-4 left-4 z-[9999] sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:left-auto
+              w-auto sm:w-screen sm:max-w-sm lg:max-w-md
+              bg-white rounded-lg shadow-2xl border-2 border-gray-200
+              max-h-[80vh] overflow-hidden
+            "
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b bg-gray-50">
               <div className="flex items-center gap-2">
@@ -300,24 +341,44 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">Tidak ada notifikasi</p>
-                  <button 
-                    onClick={() => {
-                      // Test notification function
-                      window.dispatchEvent(new CustomEvent('admin-upload-success', {
-                        detail: {
-                          type: 'upload_success',
-                          data: {
-                            fileName: 'test-photo.jpg',
-                            eventName: 'Test Event',
-                            message: 'Test notifikasi berhasil!'
+                  <div className="space-y-2">
+                    <button 
+                      onClick={() => {
+                        // Test notification function
+                        window.dispatchEvent(new CustomEvent('admin-upload-success', {
+                          detail: {
+                            type: 'upload_success',
+                            data: {
+                              fileName: 'new-test-photo.jpg',
+                              eventName: 'New Test Event',
+                              message: 'Test notifikasi berhasil!'
+                            }
                           }
-                        }
-                      }));
-                    }}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-500 underline"
-                  >
-                    Test Notifikasi
-                  </button>
+                        }));
+                      }}
+                      className="block text-xs text-blue-600 hover:text-blue-500 underline"
+                    >
+                      Test Notifikasi Success
+                    </button>
+                    <button 
+                      onClick={() => {
+                        // Test error notification
+                        window.dispatchEvent(new CustomEvent('admin-upload-failed', {
+                          detail: {
+                            type: 'upload_failed',
+                            data: {
+                              fileName: 'failed-photo.jpg',
+                              eventName: 'Test Event',
+                              message: 'Upload gagal! Coba lagi.'
+                            }
+                          }
+                        }));
+                      }}
+                      className="block text-xs text-red-600 hover:text-red-500 underline"
+                    >
+                      Test Notifikasi Error
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y">

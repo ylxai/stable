@@ -32,7 +32,12 @@ class WebSocketClient {
   private listeners: Map<string, Function[]> = new Map();
   private messageQueue: WebSocketMessage[] = [];
 
-  constructor(private url: string = 'ws://localhost:3001') {
+  constructor(private url: string = '') {
+    // Disable WebSocket in production for now
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      console.log('🚫 WebSocket disabled in production environment');
+      return;
+    }
     this.connect();
   }
 
@@ -40,12 +45,18 @@ class WebSocketClient {
    * Connect to WebSocket server
    */
   private connect(): void {
+    // Skip connection if no URL provided (production mode)
+    if (!this.url) {
+      console.log('🚫 WebSocket connection skipped - no URL provided');
+      return;
+    }
+
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
     this.isConnecting = true;
-    console.log('🔌 Connecting to WebSocket server...');
+    console.log('🔌 Connecting to WebSocket server:', this.url);
 
     try {
       this.ws = new WebSocket(this.url);
@@ -414,7 +425,10 @@ let wsClient: WebSocketClient | null = null;
 
 export function getWebSocketClient(): WebSocketClient {
   if (!wsClient) {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+    // Only enable WebSocket in development
+    const wsUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'ws://localhost:3001' 
+      : '';
     wsClient = new WebSocketClient(wsUrl);
   }
   return wsClient;

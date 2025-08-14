@@ -252,6 +252,39 @@ export default function SystemMonitor() {
         }));
       }
 
+      // Fetch storage status (simplified to avoid initialization errors)
+      try {
+        const storageResponse = await fetch('/api/admin/storage/status');
+        if (storageResponse.ok) {
+          const storageData = await storageResponse.json();
+          
+          if (storageData?.success && storageData?.data) {
+            // Simplified data access to avoid hoisting issues
+            const tierDist = storageData.data.tierDistribution;
+            const r2TierData = tierDist?.cloudflareR2;
+            
+            if (r2TierData?.totalSize) {
+              const totalGB = 10;
+              const usedBytes = r2TierData.totalSize;
+              const usedGB = Math.max(0, usedBytes / (1024 * 1024 * 1024));
+              const percentage = Math.min(Math.round((usedGB / totalGB) * 100), 100);
+              
+              setMetrics(prev => ({
+                ...prev,
+                storage: {
+                  used: usedGB,
+                  total: totalGB,
+                  percentage: percentage,
+                  status: percentage > 90 ? 'critical' : percentage > 80 ? 'warning' : 'normal'
+                }
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        // Silent fallback - keep existing dummy data
+      }
+
       // Simulate other metrics (in real app, these would come from monitoring APIs)
       setMetrics(prev => ({
         ...prev,
@@ -345,19 +378,45 @@ export default function SystemMonitor() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">System Monitoring</h2>
-          <p className="text-gray-600">Real-time system health and performance metrics</p>
+      {/* Header - Mobile Optimized */}
+      <div className="space-y-4">
+        {/* Title Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">System Monitoring</h2>
+            <p className="text-sm sm:text-base text-gray-600">Real-time system health and performance metrics</p>
+          </div>
+          
+          {/* Mobile Refresh Button - Always Visible */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              size="sm"
+              className="touch-manipulation min-h-[44px] px-4"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+              <span className="sm:hidden">🔄</span>
+            </Button>
+            
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {unreadCount}
+              </Badge>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-500">
+        
+        {/* Controls Section - Mobile Stacked */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="text-xs sm:text-sm text-gray-500">
             Last updated: {formatTimeAgo(lastRefresh.toISOString())}
           </div>
           
           {/* Real-time WebSocket Controls */}
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
             <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span className="text-xs text-gray-600">
               {currentProvider} {wsConnected ? 'connected' : 'disconnected'}
@@ -370,24 +429,8 @@ export default function SystemMonitor() {
               onCheckedChange={setUseRealtime}
               disabled={!wsConnected}
             />
-            <span className="text-sm text-gray-600">Real-time</span>
+            <span className="text-xs sm:text-sm text-gray-600">Real-time</span>
           </div>
-          
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {unreadCount} alerts
-            </Badge>
-          )}
-          
-          <Button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
         </div>
       </div>
 

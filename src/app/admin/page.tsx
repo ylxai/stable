@@ -730,9 +730,6 @@ export default function AdminDashboardGrouped() {
               <div className="flex items-center justify-between h-16">
                 {/* Logo & Title */}
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">H</span>
-                  </div>
                   <div>
                     <h1 className="text-lg font-bold text-gray-900">Admin Dashboard</h1>
                     <p className="text-xs text-gray-500 hidden sm:block">HafiPortrait Photography</p>
@@ -741,12 +738,6 @@ export default function AdminDashboardGrouped() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-3">
-                  <SmartNotificationManager 
-                    events={events}
-                    onRefresh={handleRefreshEvents}
-                    onStatusChange={handleStatusChange}
-                  />
-                  
                   {/* Notification Bell */}
                   <NotificationBell className="mobile-optimized" />
                   

@@ -426,8 +426,8 @@ export default function DSLRMonitor() {
                 >
                   <WifiIcon className="h-3 w-3 mr-1" />
                   {wsConnected ? 
-                    `${currentProvider.toUpperCase()} Connected${transport ? ` (${transport})` : ''}` : 
-                    `Polling Mode (${currentProvider})`
+                    `Real-time Connected` : 
+                    `API Polling Mode`
                   }
                 </Badge>
               </CardDescription>
