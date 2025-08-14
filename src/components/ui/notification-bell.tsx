@@ -61,6 +61,15 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
       };
       
       setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+      
+      // Mobile haptic feedback for high priority notifications
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        if (newNotification.priority === 'high' || newNotification.priority === 'critical') {
+          navigator.vibrate([100, 50, 100]); // Pattern: vibrate-pause-vibrate
+        } else if (newNotification.priority === 'medium') {
+          navigator.vibrate(100); // Single vibration
+        }
+      }
     };
 
     // Listen for DSLR upload events
@@ -236,10 +245,10 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
           
           {/* Notification Panel */}
           <div className="
-            fixed top-16 right-4 left-4 z-50 sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:left-auto
+            fixed top-16 right-2 left-2 z-50 sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:left-auto
             w-auto sm:w-screen sm:max-w-sm lg:max-w-md
             bg-white rounded-lg shadow-xl border
-            max-h-[80vh] overflow-hidden
+            max-h-[85vh] sm:max-h-[80vh] overflow-hidden
           ">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b bg-gray-50">
@@ -286,11 +295,29 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
             </div>
 
             {/* Notifications List */}
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-96 overflow-y-auto scrollbar-hide">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">Tidak ada notifikasi</p>
+                  <button 
+                    onClick={() => {
+                      // Test notification function
+                      window.dispatchEvent(new CustomEvent('admin-upload-success', {
+                        detail: {
+                          type: 'upload_success',
+                          data: {
+                            fileName: 'test-photo.jpg',
+                            eventName: 'Test Event',
+                            message: 'Test notifikasi berhasil!'
+                          }
+                        }
+                      }));
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-500 underline"
+                  >
+                    Test Notifikasi
+                  </button>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -298,10 +325,11 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                     <div
                       key={notification.id}
                       className={`
-                        p-4 border-l-4 transition-colors duration-200
+                        p-4 border-l-4 transition-colors duration-200 group
                         ${notification.isRead ? 'bg-white' : 'bg-blue-50/50'}
                         ${getPriorityColor(notification.priority)}
-                        hover:bg-gray-50 cursor-pointer
+                        hover:bg-gray-50 active:bg-gray-100 cursor-pointer
+                        touch-manipulation
                       `}
                       onClick={() => handleMarkAsRead(notification.id)}
                     >
@@ -358,8 +386,8 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                           )}
                         </div>
                         
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Actions - Mobile Optimized */}
+                        <div className="flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -367,9 +395,9 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                               e.stopPropagation();
                               handleDelete(notification.id);
                             }}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 touch-manipulation"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

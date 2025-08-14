@@ -47,6 +47,8 @@ import { LazySystemMonitor, LazyDSLRMonitor, LazyBackupStatusMonitor } from "@/c
 import { ColorPaletteProvider } from "@/components/ui/color-palette-provider";
 import { ColorPaletteSwitcher } from "@/components/ui/color-palette-switcher";
 import NotificationBell from "@/components/ui/notification-bell";
+import { EnhancedAdminHeader } from "@/components/admin/enhanced-admin-header";
+import EnhancedNotificationBell from "@/components/ui/enhanced-notification-bell";
 import { ToastProvider } from "@/components/ui/toast-notification";
 import { useToast } from "@/hooks/use-toast";
 import type { Event } from "@/lib/database";
@@ -724,44 +726,28 @@ export default function AdminDashboardGrouped() {
     <ColorPaletteProvider>
       <ToastProvider>
         <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto p-6">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+          {/* Enhanced Mobile-Optimized Header */}
+          <EnhancedAdminHeader
+            user={auth.user}
+            events={events}
+            onRefresh={handleRefreshEvents}
+            onStatusChange={handleStatusChange}
+            onLogout={auth.logout}
+          />
+          
+          <div className="max-w-7xl mx-auto p-6 pt-4">
+            {/* Mobile Header Info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 lg:hidden">
               <div>
-                <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="text-gray-600">Kelola event dan foto Anda dengan mudah</p>
+                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+                <p className="text-gray-600">Kelola event dan foto Anda</p>
               </div>
-              <div className="flex items-center gap-4">
-                <SmartNotificationManager 
-                  events={events}
-                  onRefresh={handleRefreshEvents}
-                  onStatusChange={handleStatusChange}
-                />
-                
-                {/* User Info & Logout */}
-                <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-2 shadow-sm border">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-sm font-medium text-gray-900">{auth.user?.full_name}</p>
-                    <p className="text-xs text-gray-500">@{auth.user?.username}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-dynamic-primary rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
-                        {auth.user?.full_name?.charAt(0) || auth.user?.username?.charAt(0)}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={auth.logout}
-                      className="text-gray-500 hover:text-red-600 px-2"
-                      title="Logout"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                    </Button>
-                  </div>
+              <div className="flex items-center gap-3">
+                <NotificationBell className="mobile-optimized" />
+                <div className="w-8 h-8 bg-dynamic-primary rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {auth.user?.full_name?.charAt(0) || auth.user?.username?.charAt(0)}
+                  </span>
                 </div>
               </div>
             </div>

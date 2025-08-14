@@ -73,12 +73,23 @@ class GoogleDriveStorage {
    */
   async loadTokens() {
     try {
+      // First try to use refresh token from environment
+      const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
+      if (refreshToken) {
+        console.log('✅ Using refresh token from environment');
+        this.auth.setCredentials({
+          refresh_token: refreshToken
+        });
+        return;
+      }
+
+      // Fallback to file-based tokens
       const tokenPath = './google-drive-tokens.json';
       const tokenData = await fs.readFile(tokenPath, 'utf8');
       const tokens = JSON.parse(tokenData);
       
       this.auth.setCredentials(tokens);
-      console.log('✅ Google Drive tokens loaded');
+      console.log('✅ Google Drive tokens loaded from file');
     } catch (error) {
       console.log('⚠️ No saved tokens found, authentication required');
       throw new Error('Authentication required. Run: node storage-optimization-cli.js auth');

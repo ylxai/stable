@@ -23,7 +23,9 @@ class ZeaburSocketIOServer {
           "https://hafiportrait.vercel.app",
           "https://hafiportrait.photography",
           "https://*.vercel.app",
-          process.env.FRONTEND_URL
+          "https://*.zeabur.app",
+          process.env.FRONTEND_URL,
+          process.env.FRONTEND_URL_SECONDARY
         ].filter(Boolean),
         methods: ["GET", "POST"],
         credentials: true
@@ -298,10 +300,26 @@ class ZeaburSocketIOServer {
 
   start() {
     this.server.listen(this.port, '0.0.0.0', () => {
+      const environment = process.env.NODE_ENV || 'production';
+      const isProduction = environment === 'production';
+      const baseUrl = isProduction ? 'https://wbs.zeabur.app' : `http://localhost:${this.port}`;
+      
       console.log(`🚀 HafiPortrait Socket.IO Server running on port ${this.port}`);
-      console.log(`📡 Environment: ${process.env.NODE_ENV || 'production'}`);
-      console.log(`🔗 Health check: http://localhost:${this.port}/health`);
-      console.log(`📊 Status: http://localhost:${this.port}/status`);
+      console.log(`📡 Environment: ${environment}`);
+      console.log(`🔗 Health check: ${baseUrl}/health`);
+      console.log(`📊 Status: ${baseUrl}/status`);
+      console.log(`🌐 Public URL: ${baseUrl}`);
+      
+      // Debug environment variables
+      console.log(`🔍 ENV Debug - NODE_ENV: ${process.env.NODE_ENV || 'NOT SET'}`);
+      console.log(`🔍 ENV Debug - PORT: ${process.env.PORT || 'NOT SET'}`);
+      console.log(`🔍 ENV Debug - JWT_SECRET: ${process.env.JWT_SECRET ? 'SET' : 'NOT SET'}`);
+      console.log(`🔍 ENV Debug - FRONTEND_URL: ${process.env.FRONTEND_URL || 'NOT SET'}`);
+      console.log(`🔍 ENV Debug - FRONTEND_URL_SECONDARY: ${process.env.FRONTEND_URL_SECONDARY || 'NOT SET'}`);
+      
+      if (!isProduction) {
+        console.log(`⚠️  Set NODE_ENV=production in Zeabur environment variables`);
+      }
     });
 
     // Graceful shutdown

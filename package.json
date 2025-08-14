@@ -30,7 +30,15 @@
     "koyeb:quick": "bash scripts/quick-koyeb-setup.sh",
     "koyeb:deploy": "cd ws && koyeb app redeploy hafiportrait-websocket",
     "koyeb:logs": "koyeb app logs hafiportrait-websocket",
-    "koyeb:status": "koyeb app get hafiportrait-websocket"
+    "koyeb:status": "koyeb app get hafiportrait-websocket",
+    "zeabur:setup": "node scripts/deploy-zeabur-socketio.js",
+    "zeabur:migrate": "node scripts/migrate-to-zeabur-socketio.js",
+    "zeabur:monitor": "node scripts/monitor-zeabur-socketio.js",
+    "zeabur:fix": "node scripts/fix-zeabur-deployment.js",
+    "zeabur:test": "cd zeabur-socketio && npm test",
+    "zeabur:health": "cd zeabur-socketio && npm run health",
+    "test:zeabur-integration": "node scripts/test-zeabur-integration.js",
+    "health:zeabur": "node scripts/check-zeabur-health.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",

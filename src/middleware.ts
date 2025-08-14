@@ -77,6 +77,25 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionId = request.cookies.get('admin_session')?.value;
 
+  // Block common bot attack patterns FIRST (before any processing)
+  const blockedPaths = [
+    '/wp-admin', '/wp-login', '/wp-content', '/wp-includes',
+    '/xmlrpc.php', '/phpmyadmin', '/phpMyAdmin', '/admin/config.php',
+    '/administrator', '/.env', '/.git', '/config.php', '/setup.php', '/install.php'
+  ];
+  
+  const isBlocked = blockedPaths.some(blocked => 
+    pathname.startsWith(blocked) || pathname.includes(blocked)
+  );
+  
+  if (isBlocked) {
+    // Return 404 immediately without logging
+    return new NextResponse(null, { 
+      status: 404,
+      headers: { 'Cache-Control': 'public, max-age=3600' }
+    });
+  }
+
   // Skip middleware for health checks and static assets
   if (pathname.includes('/health') || pathname.includes('/_next/') || pathname.includes('/favicon')) {
     return NextResponse.next();

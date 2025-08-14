@@ -161,9 +161,23 @@ class EventStorageManager {
         await this.smartStorageManager.initializeProviders();
       }
       
+      // First ensure the backup parent folder exists
+      let parentFolderId = null;
+      try {
+        const parentFolder = await this.smartStorageManager.googleDrive.createFolder(
+          this.config.googleDrive.backupFolder
+        );
+        parentFolderId = parentFolder.id;
+        console.log(`✅ Parent backup folder ready: ${this.config.googleDrive.backupFolder}`);
+      } catch (error) {
+        console.log(`⚠️ Parent folder creation failed, using root: ${error.message}`);
+        // Continue with root folder
+      }
+      
+      // Create the event-specific folder
       const folder = await this.smartStorageManager.googleDrive.createFolder(
         folderName,
-        this.config.googleDrive.backupFolder
+        parentFolderId
       );
       
       return folder;
@@ -252,24 +266,47 @@ class EventStorageManager {
 
   /**
    * Download photo buffer from current storage location
+   * PRIORITY: Get original quality from R2, not compressed version
    */
   async downloadPhotoBuffer(photo) {
     try {
-      // If photo is stored in Cloudflare R2 or Google Drive, download it
-      if (photo.storage_provider === 'cloudflare-r2') {
+      console.log(`📥 Downloading photo ${photo.id} from ${photo.storage_provider}:`, {
+        storage_path: photo.storage_path,
+        storage_file_id: photo.storage_file_id,
+        url: photo.url
+      });
+
+      // PRIORITY 1: Download ORIGINAL from Cloudflare R2 (highest quality)
+      if (photo.storage_provider === 'cloudflare-r2' && photo.storage_path) {
+        console.log(`📥 Downloading ORIGINAL from R2: ${photo.storage_path}`);
         return await this.smartStorageManager.cloudflareR2.downloadPhoto(photo.storage_path);
-      } else if (photo.storage_provider === 'google-drive') {
+      }
+      
+      // PRIORITY 2: Download from Google Drive if stored there
+      else if (photo.storage_provider === 'google-drive' && photo.storage_file_id) {
+        console.log(`📥 Downloading from Google Drive: ${photo.storage_file_id}`);
         return await this.smartStorageManager.googleDrive.downloadPhoto(photo.storage_file_id);
-      } else if (photo.storage_provider === 'local') {
+      }
+      
+      // PRIORITY 3: Local storage
+      else if (photo.storage_provider === 'local' && photo.storage_path) {
+        console.log(`📥 Downloading from local: ${photo.storage_path}`);
         const fs = require('fs').promises;
         return await fs.readFile(photo.storage_path);
-      } else {
-        // Fallback: download from URL
+      }
+      
+      // LAST RESORT: Download from public URL (may be compressed)
+      else if (photo.url) {
+        console.log(`⚠️ FALLBACK: Downloading from public URL (may be compressed): ${photo.url}`);
         const response = await fetch(photo.url);
         if (!response.ok) {
-          throw new Error(`Failed to download photo from URL: ${response.statusText}`);
+          throw new Error(`Failed to download from URL: ${response.statusText}`);
         }
         return Buffer.from(await response.arrayBuffer());
+      }
+      
+      else {
+        throw new Error(`No valid storage location found for photo ${photo.id}. Provider: ${photo.storage_provider}, Path: ${photo.storage_path}, FileId: ${photo.storage_file_id}, URL: ${photo.url}`);
       }
     } catch (error) {
       console.error(`❌ Failed to download photo ${photo.id}:`, error);

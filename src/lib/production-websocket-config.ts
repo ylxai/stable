@@ -1,13 +1,19 @@
 /**
+ * Updated for Zeabur Socket.IO deployment
+ * Migration date: 2025-08-14T19:08:26.827Z
+ * Zeabur URL: https://wbs.zeabur.app
+ */
+
+/**
  * Production WebSocket Configuration
  * Optimized settings for external WebSocket server
  */
 
 export const PRODUCTION_WS_CONFIG = {
   // External WebSocket Server
-  serverUrl: 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com',
-  healthEndpoint: 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/health',
-  wsEndpoint: 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/ws',
+  serverUrl: 'https://wbs.zeabur.app',
+  healthEndpoint: 'https://wbs.zeabur.app/health',
+  wsEndpoint: 'https://wbs.zeabur.app/socket.io/',
   
   // Connection Settings
   connectionTimeout: 10000,

@@ -680,3 +680,7 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Import Mobile Header Enhancements */
+@import '../styles/mobile-header-enhancements.css';
+@import '../styles/enhanced-mobile-header.css';
