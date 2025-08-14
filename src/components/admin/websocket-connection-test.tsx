@@ -44,7 +44,7 @@ export function WebSocketConnectionTest() {
     try {
       setStatus(prev => ({ ...prev, health: 'checking' }));
       
-      const response = await fetch('https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/health');
+      const response = await fetch('https://wbs.zeabur.app/health');
       
       if (response.ok) {
         setStatus(prev => ({ ...prev, health: 'healthy' }));
@@ -65,7 +65,7 @@ export function WebSocketConnectionTest() {
     try {
       setStatus(prev => ({ ...prev, websocket: 'connecting' }));
       
-      const ws = new WebSocket('wss://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/ws');
+      const ws = new WebSocket('wss://wbs.zeabur.app/socket.io/');
       
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -101,7 +101,7 @@ export function WebSocketConnectionTest() {
       // Import Socket.IO client dynamically
       const { io } = await import('socket.io-client');
       
-      const socket = io('https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com', {
+      const socket = io('https://wbs.zeabur.app', {
         transports: ['websocket', 'polling'],
         timeout: 10000,
         reconnection: false
@@ -255,9 +255,9 @@ export function WebSocketConnectionTest() {
         <div className="p-3 bg-gray-50 rounded-lg">
           <h4 className="font-medium mb-2">Server Configuration</h4>
           <div className="space-y-1 text-sm text-gray-600">
-            <div>URL: https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com</div>
-            <div>Health: https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/health</div>
-            <div>WebSocket: wss://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com/ws</div>
+            <div>URL: https://wbs.zeabur.app</div>
+            <div>Health: https://wbs.zeabur.app/health</div>
+            <div>WebSocket: wss://wbs.zeabur.app/socket.io/</div>
           </div>
         </div>
 

@@ -78,7 +78,7 @@ export function getWebSocketConfig() {
   if (isDevelopment) {
     return {
       ...PRODUCTION_WS_CONFIG,
-      serverUrl: process.env.NEXT_PUBLIC_SOCKETIO_URL || 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com',
+      serverUrl: process.env.NEXT_PUBLIC_SOCKETIO_URL || 'https://wbs.zeabur.app',
       healthCheckInterval: 60000, // Less frequent in dev
       fallbackPolling: {
         ...PRODUCTION_WS_CONFIG.fallbackPolling,

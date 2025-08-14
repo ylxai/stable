@@ -48,7 +48,7 @@ class SocketIOClient {
   private isBackground: boolean = false;
   private networkType: string = 'unknown';
 
-  constructor(private url: string = 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com') {
+  constructor(private url: string = 'https://wbs.zeabur.app') {
     this.detectMobile();
     this.setupNetworkDetection();
     this.setupVisibilityHandling();
@@ -733,7 +733,7 @@ let socketIOClient: SocketIOClient | null = null;
 
 export function getSocketIOClient(): SocketIOClient {
   if (!socketIOClient) {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKETIO_URL || process.env.NEXT_PUBLIC_WS_URL || 'https://xcyrexmwrwjq.ap-southeast-1.clawcloudrun.com';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKETIO_URL || process.env.NEXT_PUBLIC_WS_URL || 'https://wbs.zeabur.app';
     socketIOClient = new SocketIOClient(socketUrl);
   }
   return socketIOClient;
