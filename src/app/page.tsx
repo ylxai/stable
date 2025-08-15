@@ -22,7 +22,7 @@ export default function HomePage() {
         <ColorPaletteSwitcher variant="floating" />
         
         <Header />
-        <main className="relative">
+        <main className="relative pt-20 lg:pt-24">
           <HeroSlideshow 
             className="h-[70vh] md:min-h-screen"
             autoplay={true}
