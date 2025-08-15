@@ -62,12 +62,12 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
   ]);
 
   // Debug logging
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const hasUnread = unreadCount > 0;
+
   useEffect(() => {
     // Debug info available in browser dev tools
   }, [isOpen, notifications.length, unreadCount]);
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  const hasUnread = unreadCount > 0;
 
   // Initialize real notification system
   useEffect(() => {

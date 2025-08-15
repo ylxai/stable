@@ -7,7 +7,12 @@ import { Monitor } from 'lucide-react';
 // Lazy load heavy components
 const SystemMonitor = lazy(() => import('./system-monitor'));
 const DSLRMonitor = lazy(() => import('./dslr-monitor'));
-const BackupStatusMonitor = lazy(() => import('./backup-status-monitor').then(module => ({ default: module.BackupStatusMonitor })));
+// Fix: Import BackupStatusMonitor as named export
+const BackupStatusMonitor = lazy(() => 
+  import('./backup-status-monitor').then(module => ({ 
+    default: module.BackupStatusMonitor 
+  }))
+);
 
 // Loading fallback component
 function MonitorSkeleton({ title }: { title: string }) {
