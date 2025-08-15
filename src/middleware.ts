@@ -148,13 +148,22 @@ function addCorsHeaders(response: NextResponse, origin?: string): NextResponse {
     'Access-Control-Max-Age': '86400', // 24 hours
   };
 
-  // Set Access-Control-Allow-Origin
+  // Set Access-Control-Allow-Origin with security considerations
   if (!origin || isOriginAllowed(origin)) {
     headers['Access-Control-Allow-Origin'] = origin || '*';
   } else {
     // Fallback to first allowed origin
     const allowedOrigins = getAllowedOrigins();
     headers['Access-Control-Allow-Origin'] = allowedOrigins[0] || '*';
+  }
+
+  // Add security headers for production
+  if (process.env.NODE_ENV === 'production') {
+    headers['X-Content-Type-Options'] = 'nosniff';
+    headers['X-Frame-Options'] = 'DENY';
+    headers['X-XSS-Protection'] = '1; mode=block';
+    headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
+    headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()';
   }
 
   Object.entries(headers).forEach(([key, value]) => {

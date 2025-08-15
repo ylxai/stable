@@ -8,17 +8,33 @@ import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
 // Create Supabase client with service role key for admin operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+// Validate required environment variables
+if (!supabaseUrl || !supabaseServiceKey) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Missing required Supabase environment variables in production');
+  }
+  console.warn('Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+}
+
+const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
   }
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hafiportrait-secret-key-change-in-production';
+// Validate JWT secret for production
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'hafiportrait-secret-key-change-in-production') {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production environment');
+  }
+  console.warn('Using default JWT secret. Please set JWT_SECRET environment variable for production.');
+}
+
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface AdminUser {
@@ -64,6 +80,10 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Generate JWT token
  */
 export function generateToken(userId: number, username: string): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  
   return jwt.sign(
     { userId, username },
     JWT_SECRET,
@@ -75,10 +95,16 @@ export function generateToken(userId: number, username: string): string {
  * Verify JWT token
  */
 export function verifyToken(token: string): { userId: number; username: string } | null {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not configured');
+    return null;
+  }
+  
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     return { userId: decoded.userId, username: decoded.username };
   } catch (error) {
+    console.error('Token verification failed:', error);
     return null;
   }
 }

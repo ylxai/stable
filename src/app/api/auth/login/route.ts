@@ -29,8 +29,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if required environment variables are set
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing required environment variables');
+    const requiredEnvVars = {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      JWT_SECRET: process.env.JWT_SECRET
+    };
+
+    const missingEnvVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value || value === 'hafiportrait-secret-key-change-in-production')
+      .map(([key]) => key);
+
+    if (missingEnvVars.length > 0) {
+      console.error('Missing required environment variables:', missingEnvVars);
       return corsErrorResponse('Server configuration error', 500, origin);
     }
 
@@ -192,7 +202,7 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if logging fails
     }
 
-    // Set session cookie with enhanced security
+    // Set session cookie with enhanced security for production
     const cookieStore = await cookies();
     const isProduction = process.env.NODE_ENV === 'production';
     

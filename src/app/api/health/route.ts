@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
       checks: {
         database: 'unknown',
         environment: 'unknown',
-        api: 'healthy'
+        api: 'healthy',
+        security: 'unknown'
       }
     };
 
@@ -36,11 +37,15 @@ export async function GET(request: NextRequest) {
       'JWT_SECRET'
     ];
 
-    const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    const missingEnvVars = requiredEnvVars.filter(varName => {
+      const value = process.env[varName];
+      return !value || value === 'hafiportrait-secret-key-change-in-production';
+    });
     
     if (missingEnvVars.length > 0) {
       healthStatus.checks.environment = 'unhealthy';
       healthStatus.checks.database = 'unknown';
+      healthStatus.checks.security = 'unhealthy';
       healthStatus.status = 'unhealthy';
       
       return corsResponse({
@@ -49,6 +54,20 @@ export async function GET(request: NextRequest) {
       }, 500, origin);
     } else {
       healthStatus.checks.environment = 'healthy';
+    }
+
+    // Check security configuration
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret && jwtSecret !== 'hafiportrait-secret-key-change-in-production') {
+      healthStatus.checks.security = 'healthy';
+    } else {
+      healthStatus.checks.security = 'unhealthy';
+      healthStatus.status = 'unhealthy';
+      
+      return corsResponse({
+        ...healthStatus,
+        error: 'JWT_SECRET is not properly configured'
+      }, 500, origin);
     }
 
     // Check database connection
@@ -105,7 +124,8 @@ export async function GET(request: NextRequest) {
       checks: {
         database: 'unknown',
         environment: 'unknown',
-        api: 'unhealthy'
+        api: 'unhealthy',
+        security: 'unknown'
       }
     }, 500, origin);
   }
