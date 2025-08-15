@@ -6,6 +6,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useRequireAuth } from "@/hooks/use-auth";
@@ -43,14 +44,42 @@ import { EventStatusSummary } from "@/components/admin/event-status-summary";
 import { AutoStatusManager } from "@/components/admin/auto-status-manager";
 import { SmartNotificationManager } from "@/components/admin/smart-notification-manager";
 import NotificationManager from "@/components/admin/notification-manager";
-import { LazySystemMonitor, LazyDSLRMonitor, LazyBackupStatusMonitor } from "@/components/admin/lazy-system-monitor";
-import { ColorPaletteProvider } from "@/components/ui/color-palette-provider";
-import { ColorPaletteSwitcher } from "@/components/ui/color-palette-switcher";
 import NotificationBell from "@/components/ui/notification-bell";
 import { ToastProvider } from "@/components/ui/toast-notification";
 import { useToast } from "@/hooks/use-toast";
 import type { Event } from "@/lib/database";
 import type { EventFormData } from "@/components/admin/EventForm";
+
+// Dynamic imports for heavy components to avoid circular dependencies
+const SystemMonitorsWrapper = dynamic(() => import("@/components/admin/system-monitors-wrapper"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
+});
+
+// Import individual monitors
+const DSLRMonitor = dynamic(() => import("@/components/admin/dslr-monitor"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
+});
+
+const SystemMonitor = dynamic(() => import("@/components/admin/system-monitor"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
+});
+
+const BackupStatusMonitor = dynamic(() => import("@/components/admin/backup-status-monitor").then(mod => ({ default: mod.BackupStatusMonitor })), {
+  ssr: false,
+  loading: () => <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
+});
+
+const ColorPaletteProvider = dynamic(() => import("@/components/ui/color-palette-provider").then(mod => mod.ColorPaletteProvider), {
+  ssr: false
+});
+
+const ColorPaletteSwitcher = dynamic(() => import("@/components/ui/color-palette-switcher").then(mod => mod.ColorPaletteSwitcher), {
+  ssr: false,
+  loading: () => <div className="w-8 h-8"></div>
+});
 
 export default function AdminDashboardGrouped() {
   const auth = useRequireAuth();
@@ -1474,7 +1503,7 @@ export default function AdminDashboardGrouped() {
                     </CardContent>
                   </Card>
                 )}
-                {activeSubTab === 'dslr' && <LazyDSLRMonitor />}
+                {activeSubTab === 'dslr' && <DSLRMonitor />}
               </TabsContent>
 
               {/* SYSTEM TAB */}
@@ -1505,7 +1534,7 @@ export default function AdminDashboardGrouped() {
 
                 {/* System Content */}
                 {activeSubTab === 'notifications' && <NotificationManager />}
-                {activeSubTab === 'monitoring' && <LazySystemMonitor />}
+                {activeSubTab === 'monitoring' && <SystemMonitor />}
                 {activeSubTab === 'backup' && (
                   <div className="space-y-6">
                     {/* Mobile-Optimized Header */}
@@ -1533,7 +1562,7 @@ export default function AdminDashboardGrouped() {
                     </div>
                     
                     {/* BackupStatusMonitor Component */}
-                    <LazyBackupStatusMonitor />
+                    <BackupStatusMonitor />
                   </div>
                 )}
               </TabsContent>
