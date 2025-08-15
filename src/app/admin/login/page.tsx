@@ -94,6 +94,13 @@ function LoginForm() {
     setSuccess('');
 
     try {
+      // Validate form inputs
+      if (!username.trim() || !password.trim()) {
+        setError('Username dan password harus diisi');
+        showToast('Username dan password harus diisi', 'error');
+        return;
+      }
+
       // Smart URL detection for different environments
       const baseUrl = (() => {
         // First, check for environment variable
@@ -127,20 +134,33 @@ function LoginForm() {
       const apiUrl = `${baseUrl}/api/auth/login`;
       console.log('Full API URL:', apiUrl);
 
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: username.trim(), password }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-      const data = await response.json();
-      console.log('Response data:', data);
+      let data;
+      try {
+        data = await response.json();
+        console.log('Response data:', data);
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        throw new Error('Invalid response from server');
+      }
 
       if (response.ok) {
         // Login successful
@@ -168,7 +188,13 @@ function LoginForm() {
           errorMessage = 'API endpoint tidak ditemukan. Silakan coba lagi.';
         } else if (response.status === 403) {
           errorMessage = 'Akses ditolak. Silakan coba lagi.';
-        } else if (data.error) {
+        } else if (response.status === 502) {
+          errorMessage = 'Server sedang dalam maintenance. Silakan coba lagi nanti.';
+        } else if (response.status === 503) {
+          errorMessage = 'Layanan sedang tidak tersedia. Silakan coba lagi nanti.';
+        } else if (response.status === 504) {
+          errorMessage = 'Server timeout. Silakan coba lagi.';
+        } else if (data?.error) {
           errorMessage = data.error;
         }
         
@@ -184,6 +210,10 @@ function LoginForm() {
         errorMessage = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
       } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         errorMessage = 'Gagal terhubung ke API. Silakan coba lagi.';
+      } else if (error instanceof Error && error.name === 'AbortError') {
+        errorMessage = 'Request timeout. Silakan coba lagi.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
       
       setError(errorMessage);

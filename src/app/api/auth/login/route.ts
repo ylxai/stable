@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
       return corsErrorResponse('Method not allowed', 405, origin);
     }
 
+    // Check if required environment variables are set
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Missing required environment variables');
+      return corsErrorResponse('Server configuration error', 500, origin);
+    }
+
     // Parse request body
     let body;
     try {
@@ -57,6 +63,12 @@ export async function POST(request: NextRequest) {
       return corsErrorResponse('Password harus antara 6-100 karakter', 400, origin);
     }
 
+    // Validate input format
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      console.log('Invalid username format');
+      return corsErrorResponse('Username hanya boleh berisi huruf, angka, dan underscore', 400, origin);
+    }
+
     // Get client info
     const ipAddress = request.ip || 
                      request.headers.get('x-forwarded-for') || 
@@ -70,26 +82,44 @@ export async function POST(request: NextRequest) {
     const rateLimitKey = `login_attempts:${ipAddress}`;
     // Note: In production, implement proper rate limiting with Redis or similar
 
-    // Authenticate user
+    // Authenticate user with timeout
     console.log('Attempting authentication for username:', username);
-    const user = await authenticateUser({ username, password });
+    
+    let user;
+    try {
+      // Add timeout to authentication
+      const authPromise = authenticateUser({ username, password });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Authentication timeout')), 5000)
+      );
+      
+      user = await Promise.race([authPromise, timeoutPromise]) as any;
+    } catch (authError) {
+      console.error('Authentication error:', authError);
+      return corsErrorResponse('Terjadi kesalahan saat autentikasi. Silakan coba lagi.', 500, origin);
+    }
     
     if (!user) {
       console.log('Authentication failed for username:', username);
       // Log failed login attempt
-      await logActivity(
-        0, // No user ID for failed attempts
-        'login_failed',
-        'auth',
-        username,
-        { 
-          reason: 'invalid_credentials',
-          ip_address: ipAddress,
-          user_agent: userAgent
-        },
-        ipAddress,
-        userAgent
-      );
+      try {
+        await logActivity(
+          0, // No user ID for failed attempts
+          'login_failed',
+          'auth',
+          username,
+          { 
+            reason: 'invalid_credentials',
+            ip_address: ipAddress,
+            user_agent: userAgent
+          },
+          ipAddress,
+          userAgent
+        );
+      } catch (logError) {
+        console.error('Failed to log activity:', logError);
+        // Don't fail the request if logging fails
+      }
 
       return corsErrorResponse('Username atau password salah', 401, origin);
     }
@@ -97,28 +127,43 @@ export async function POST(request: NextRequest) {
     console.log('Authentication successful for user:', user.username);
 
     // Check if user is active
-    if (user.status !== 'active') {
+    if (user.status !== 'active' && user.is_active !== true) {
       console.log('User account inactive:', user.username);
-      await logActivity(
-        user.id,
-        'login_failed',
-        'auth',
-        user.username,
-        { 
-          reason: 'account_inactive',
-          ip_address: ipAddress,
-          user_agent: userAgent
-        },
-        ipAddress,
-        userAgent
-      );
+      try {
+        await logActivity(
+          user.id,
+          'login_failed',
+          'auth',
+          user.username,
+          { 
+            reason: 'account_inactive',
+            ip_address: ipAddress,
+            user_agent: userAgent
+          },
+          ipAddress,
+          userAgent
+        );
+      } catch (logError) {
+        console.error('Failed to log activity:', logError);
+      }
 
       return corsErrorResponse('Akun tidak aktif. Silakan hubungi administrator.', 403, origin);
     }
 
-    // Create session
+    // Create session with timeout
     console.log('Creating session for user:', user.username);
-    const sessionId = await createSession(user.id, ipAddress, userAgent);
+    let sessionId;
+    try {
+      const sessionPromise = createSession(user.id, ipAddress, userAgent);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Session creation timeout')), 5000)
+      );
+      
+      sessionId = await Promise.race([sessionPromise, timeoutPromise]) as string;
+    } catch (sessionError) {
+      console.error('Session creation error:', sessionError);
+      return corsErrorResponse('Gagal membuat sesi. Silakan coba lagi.', 500, origin);
+    }
 
     if (!sessionId) {
       console.error('Failed to create session for user:', user.username);
@@ -128,19 +173,24 @@ export async function POST(request: NextRequest) {
     console.log('Session created successfully:', sessionId);
 
     // Log successful login
-    await logActivity(
-      user.id,
-      'login_success',
-      'auth',
-      user.username,
-      { 
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        session_id: sessionId
-      },
-      ipAddress,
-      userAgent
-    );
+    try {
+      await logActivity(
+        user.id,
+        'login_success',
+        'auth',
+        user.username,
+        { 
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          session_id: sessionId
+        },
+        ipAddress,
+        userAgent
+      );
+    } catch (logError) {
+      console.error('Failed to log activity:', logError);
+      // Don't fail the request if logging fails
+    }
 
     // Set session cookie with enhanced security
     const cookieStore = await cookies();
@@ -165,7 +215,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         full_name: user.full_name,
         role: user.role,
-        status: user.status
+        status: user.status || (user.is_active ? 'active' : 'inactive')
       },
       message: 'Login berhasil',
       session: {

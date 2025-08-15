@@ -143,6 +143,29 @@ export async function createDefaultAdminUsers(): Promise<void> {
  */
 export async function authenticateUser(credentials: LoginCredentials): Promise<AdminUser | null> {
   try {
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
+      throw new Error('Database configuration error');
+    }
+
+    // Test database connection first
+    try {
+      const { data: testData, error: testError } = await supabaseAdmin
+        .from('admin_users')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('Database connection test failed:', testError);
+        throw new Error('Database connection failed');
+      }
+    } catch (connectionError) {
+      console.error('Database connection error:', connectionError);
+      throw new Error('Unable to connect to database');
+    }
+
+    // Authenticate user
     const { data: user, error } = await supabaseAdmin
       .from('admin_users')
       .select('*')
@@ -150,27 +173,47 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
       .eq('is_active', true)
       .single();
 
-    if (error || !user) {
+    if (error) {
+      console.error('Database query error:', error);
+      if (error.code === 'PGRST116') {
+        // No rows returned - user not found
+        return null;
+      }
+      throw new Error('Database query failed');
+    }
+
+    if (!user) {
       return null;
     }
 
-    const isValidPassword = await verifyPassword(credentials.password, user.password_hash);
-    if (!isValidPassword) {
+    // Verify password
+    try {
+      const isValidPassword = await verifyPassword(credentials.password, user.password_hash);
+      if (!isValidPassword) {
+        return null;
+      }
+    } catch (passwordError) {
+      console.error('Password verification error:', passwordError);
       return null;
     }
 
     // Update last login
-    await supabaseAdmin
-      .from('admin_users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', user.id);
+    try {
+      await supabaseAdmin
+        .from('admin_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
+    } catch (updateError) {
+      console.error('Failed to update last login:', updateError);
+      // Don't fail authentication if update fails
+    }
 
     // Return user without password hash
     const { password_hash, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
     console.error('Authentication error:', error);
-    return null;
+    throw error; // Re-throw to be handled by caller
   }
 }
 
