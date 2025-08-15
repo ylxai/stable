@@ -49,6 +49,7 @@ import { ColorPaletteSwitcher } from "@/components/ui/color-palette-switcher";
 import NotificationBell from "@/components/ui/notification-bell";
 import { ToastProvider } from "@/components/ui/toast-notification";
 import { useToast } from "@/hooks/use-toast";
+import StorageInfoDisplay from "@/components/admin/storage-info-display";
 import type { Event } from "@/lib/database";
 import type { EventFormData } from "@/components/admin/EventForm";
 
@@ -1519,16 +1520,7 @@ export default function AdminDashboardGrouped() {
                             Monitor dan kelola backup event ke Google Drive
                           </p>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 text-xs sm:text-sm">
-                          <div className="bg-white/80 rounded-lg px-3 py-2 text-center">
-                            <div className="font-semibold text-green-600">15GB+</div>
-                            <div className="text-gray-600">Google Drive</div>
-                          </div>
-                          <div className="bg-white/80 rounded-lg px-3 py-2 text-center">
-                            <div className="font-semibold text-blue-600">FREE</div>
-                            <div className="text-gray-600">Storage</div>
-                          </div>
-                        </div>
+                        <StorageInfoDisplay />
                       </div>
                     </div>
                     

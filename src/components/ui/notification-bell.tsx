@@ -4,25 +4,7 @@ import { useState, useEffect } from 'react';
 import { Bell, BellRing, X, Check, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-// import { useNotifications } from '@/hooks/use-notifications';
-// import { getDSLRNotificationIntegration } from '@/lib/dslr-notification-integration';
-
-interface Notification {
-  id: string;
-  type: 'upload_success' | 'upload_failed' | 'camera_disconnected' | 'storage_warning' | 'event_milestone' | 'system';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  category: 'upload' | 'system' | 'event' | 'user';
-  metadata?: {
-    fileName?: string;
-    eventName?: string;
-    count?: number;
-    percentage?: number;
-  };
-}
+import { useNotifications } from '@/hooks/use-notifications';
 
 interface NotificationBellProps {
   className?: string;
@@ -30,117 +12,23 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ className = '' }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    // Dummy notifications for testing
-    {
-      id: 'dummy-1',
-      type: 'upload_success',
-      title: '📸 Foto Berhasil Diupload',
-      message: 'test-photo.jpg berhasil diupload ke Test Event',
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      priority: 'medium',
-      category: 'upload',
-      metadata: {
-        fileName: 'test-photo.jpg',
-        eventName: 'Test Event'
-      }
-    },
-    {
-      id: 'dummy-2',
-      type: 'storage_warning',
-      title: '⚠️ Storage Hampir Penuh',
-      message: 'Storage sudah mencapai 85% kapasitas',
-      timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-      isRead: false,
-      priority: 'high',
-      category: 'system',
-      metadata: {
-        percentage: 85
-      }
-    }
-  ]);
+  
+  // Use real notification hook instead of dummy data
+  const { 
+    notifications, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification, 
+    clearAll,
+    unreadCount 
+  } = useNotifications();
+
+  const hasUnread = unreadCount > 0;
 
   // Debug logging
   useEffect(() => {
-    // Debug info available in browser dev tools
-  }, [isOpen, notifications.length, unreadCount]);
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  const hasUnread = unreadCount > 0;
-
-  // Initialize real notification system
-  useEffect(() => {
-    // const dslrIntegration = getDSLRNotificationIntegration();
-    
-    // Listen for real upload events from admin dashboard
-    const handleAdminUpload = (event: CustomEvent) => {
-      const { type, data } = event.detail;
-      
-      const newNotification: Notification = {
-        id: Date.now().toString(),
-        type: type,
-        title: getNotificationTitle(type),
-        message: data.message || `${data.fileName || 'File'} berhasil diupload`,
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        priority: getNotificationPriority(type),
-        category: getNotificationCategory(type),
-        metadata: {
-          fileName: data.fileName,
-          eventName: data.eventName,
-          count: data.count,
-          percentage: data.percentage
-        }
-      };
-      
-      setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
-      
-      // Mobile haptic feedback for high priority notifications
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        if (newNotification.priority === 'high' || newNotification.priority === 'critical') {
-          navigator.vibrate([100, 50, 100]); // Pattern: vibrate-pause-vibrate
-        } else if (newNotification.priority === 'medium') {
-          navigator.vibrate(100); // Single vibration
-        }
-      }
-    };
-
-    // Listen for DSLR upload events
-    const handleDSLRNotification = (event: any) => {
-      const newNotification: Notification = {
-        id: Date.now().toString(),
-        type: event.type,
-        title: getNotificationTitle(event.type),
-        message: event.message || event.data?.message || 'New notification',
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        priority: getNotificationPriority(event.type),
-        category: getNotificationCategory(event.type),
-        metadata: {
-          fileName: event.data?.fileName,
-          eventName: event.data?.eventName,
-          count: event.data?.count,
-          percentage: event.data?.percentage
-        }
-      };
-      
-      setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
-    };
-
-    // Listen for events
-    if (typeof window !== 'undefined') {
-      window.addEventListener('admin-upload-success', handleAdminUpload as EventListener);
-      window.addEventListener('admin-upload-failed', handleAdminUpload as EventListener);
-      window.addEventListener('dslr-notification', handleDSLRNotification);
-      
-      return () => {
-        window.removeEventListener('admin-upload-success', handleAdminUpload as EventListener);
-        window.removeEventListener('admin-upload-failed', handleAdminUpload as EventListener);
-        window.removeEventListener('dslr-notification', handleDSLRNotification);
-      };
-    }
-  }, []);
+    console.log('🔔 NotificationBell: unreadCount =', unreadCount);
+  }, [unreadCount]);
 
   const getNotificationTitle = (type: string): string => {
     switch (type) {
@@ -153,63 +41,6 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
       case 'event_milestone': return '🎉 Milestone Tercapai';
       default: return '📢 Notifikasi Baru';
     }
-  };
-
-  const getNotificationPriority = (type: string): 'low' | 'medium' | 'high' | 'critical' => {
-    switch (type) {
-      case 'upload_failed': 
-      case 'camera_disconnected': 
-      case 'storage_warning': return 'high';
-      case 'upload_success': 
-      case 'event_milestone': return 'medium';
-      case 'upload_start': 
-      case 'camera_connected': return 'low';
-      default: return 'medium';
-    }
-  };
-
-  const getNotificationCategory = (type: string): 'upload' | 'system' | 'event' | 'user' => {
-    switch (type) {
-      case 'upload_success':
-      case 'upload_failed':
-      case 'upload_start': return 'upload';
-      case 'camera_connected':
-      case 'camera_disconnected':
-      case 'storage_warning': return 'system';
-      case 'event_milestone': return 'event';
-      default: return 'user';
-    }
-  };
-
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
-  };
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, isRead: true }))
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const handleClearAll = () => {
-    setNotifications([]);
-  };
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Baru';
-    if (diffInMinutes < 60) return `${diffInMinutes}m`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-    return `${Math.floor(diffInMinutes / 1440)}d`;
   };
 
   const getNotificationIcon = (type: string) => {
@@ -232,6 +63,17 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
       case 'low': return 'border-l-gray-500 bg-gray-50';
       default: return 'border-l-gray-500 bg-gray-50';
     }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Baru';
+    if (diffInMinutes < 60) return `${diffInMinutes}m`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+    return `${Math.floor(diffInMinutes / 1440)}d`;
   };
 
   return (
@@ -307,7 +149,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleMarkAllAsRead}
+                      onClick={markAllAsRead}
                       className="text-xs h-8 px-2"
                     >
                       <Check className="h-3 w-3 mr-1" />
@@ -316,7 +158,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleClearAll}
+                      onClick={clearAll}
                       className="text-xs h-8 px-2 text-red-600 hover:text-red-700"
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
@@ -341,44 +183,6 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">Tidak ada notifikasi</p>
-                  <div className="space-y-2">
-                    <button 
-                      onClick={() => {
-                        // Test notification function
-                        window.dispatchEvent(new CustomEvent('admin-upload-success', {
-                          detail: {
-                            type: 'upload_success',
-                            data: {
-                              fileName: 'new-test-photo.jpg',
-                              eventName: 'New Test Event',
-                              message: 'Test notifikasi berhasil!'
-                            }
-                          }
-                        }));
-                      }}
-                      className="block text-xs text-blue-600 hover:text-blue-500 underline"
-                    >
-                      Test Notifikasi Success
-                    </button>
-                    <button 
-                      onClick={() => {
-                        // Test error notification
-                        window.dispatchEvent(new CustomEvent('admin-upload-failed', {
-                          detail: {
-                            type: 'upload_failed',
-                            data: {
-                              fileName: 'failed-photo.jpg',
-                              eventName: 'Test Event',
-                              message: 'Upload gagal! Coba lagi.'
-                            }
-                          }
-                        }));
-                      }}
-                      className="block text-xs text-red-600 hover:text-red-500 underline"
-                    >
-                      Test Notifikasi Error
-                    </button>
-                  </div>
                 </div>
               ) : (
                 <div className="divide-y">
@@ -392,7 +196,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                         hover:bg-gray-50 active:bg-gray-100 cursor-pointer
                         touch-manipulation
                       `}
-                      onClick={() => handleMarkAsRead(notification.id)}
+                      onClick={() => markAsRead(notification.id)}
                     >
                       <div className="flex items-start gap-3">
                         {/* Icon */}
@@ -454,7 +258,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(notification.id);
+                              deleteNotification(notification.id);
                             }}
                             className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 touch-manipulation"
                           >
