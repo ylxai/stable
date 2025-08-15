@@ -462,6 +462,101 @@ class SmartStorageManager {
   }
 
   /**
+   * Get storage statistics for API
+   */
+  async getStorageStats() {
+    try {
+      // Initialize providers if not already done
+      if (!this.cloudflareR2 || !this.googleDrive) {
+        await this.initializeProviders();
+      }
+
+      // Get real-time stats from providers
+      const cloudflareR2Stats = await this.getCloudflareR2Stats();
+      const googleDriveStats = await this.getGoogleDriveStats();
+
+      return {
+        cloudflareR2: {
+          used: cloudflareR2Stats.used,
+          available: this.config.cloudflareR2.maxSizeGB * 1024 * 1024 * 1024
+        },
+        googleDrive: {
+          used: googleDriveStats.used,
+          available: this.config.googleDrive.maxSizeGB * 1024 * 1024 * 1024
+        },
+        local: {
+          used: this.storageStats.local.used,
+          available: this.config.local.maxSizeGB * 1024 * 1024 * 1024
+        }
+      };
+    } catch (error) {
+      console.error('❌ Failed to get storage stats:', error);
+      
+      // Return cached stats as fallback
+      return this.storageStats;
+    }
+  }
+
+  /**
+   * Get Cloudflare R2 storage statistics
+   */
+  async getCloudflareR2Stats() {
+    try {
+      if (!this.cloudflareR2) {
+        return { used: 0 };
+      }
+
+      // Get bucket size from Cloudflare R2
+      const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
+      
+      const command = new ListObjectsV2Command({
+        Bucket: this.config.cloudflareR2.bucketName
+      });
+
+      const response = await this.cloudflareR2.s3Client.send(command);
+      
+      let totalSize = 0;
+      if (response.Contents) {
+        totalSize = response.Contents.reduce((sum, obj) => sum + (obj.Size || 0), 0);
+      }
+
+      return { used: totalSize };
+    } catch (error) {
+      console.error('❌ Failed to get Cloudflare R2 stats:', error);
+      return { used: 0 };
+    }
+  }
+
+  /**
+   * Get Google Drive storage statistics
+   */
+  async getGoogleDriveStats() {
+    try {
+      if (!this.googleDrive) {
+        return { used: 0 };
+      }
+
+      // Get storage quota from Google Drive
+      const drive = this.googleDrive.drive;
+      const response = await drive.about.get({
+        fields: 'storageQuota'
+      });
+
+      const quota = response.data.storageQuota;
+      const used = parseInt(quota.usage || '0');
+      const limit = parseInt(quota.limit || '0');
+
+      return { 
+        used: used,
+        limit: limit
+      };
+    } catch (error) {
+      console.error('❌ Failed to get Google Drive stats:', error);
+      return { used: 0 };
+    }
+  }
+
+  /**
    * Cleanup old files based on retention policy
    */
   async cleanupOldFiles(retentionDays = 30) {

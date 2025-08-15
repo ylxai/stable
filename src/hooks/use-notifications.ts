@@ -4,381 +4,202 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getWebSocketClient } from '@/lib/websocket-client';
-import { 
-  requestNotificationPermission, 
-  onForegroundMessage, 
-  subscribeToTopic,
-  unsubscribeFromTopic,
-  getCurrentToken,
-  sendTestNotification,
-  getNotificationPermission
-} from '@/lib/firebase-config';
-import { useToast } from '@/components/ui/toast-notification';
 
-export interface NotificationState {
-  isSupported: boolean;
-  permission: NotificationPermission;
-  isConnected: boolean;
-  fcmToken: string | null;
-  unreadCount: number;
-  isLoading: boolean;
-  error: string | null;
+interface Notification {
+  id: string;
+  type: 'upload_success' | 'upload_failed' | 'camera_disconnected' | 'storage_warning' | 'event_milestone' | 'system';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  category: 'upload' | 'system' | 'event' | 'user';
+  metadata?: {
+    fileName?: string;
+    eventName?: string;
+    count?: number;
+    percentage?: number;
+  };
 }
 
-export interface NotificationHook {
-  state: NotificationState;
-  requestPermission: () => Promise<boolean>;
-  sendTest: () => Promise<void>;
-  subscribe: (topic: string) => Promise<void>;
-  unsubscribe: (topic: string) => Promise<void>;
-  markAsRead: (notificationId: string) => void;
-  markAllAsRead: () => void;
-  clearError: () => void;
-  reconnect: () => void;
-}
+export function useNotifications() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export function useNotifications(): NotificationHook {
-  const { addToast } = useToast();
-  const [state, setState] = useState<NotificationState>({
-    isSupported: false,
-    permission: 'default',
-    isConnected: false,
-    fcmToken: null,
-    unreadCount: 0,
-    isLoading: true,
-    error: null
-  });
-
-  // Initialize notification system
+  // Load notifications from localStorage on mount
   useEffect(() => {
-    initializeNotifications();
+    try {
+      const stored = localStorage.getItem('hafiportrait-notifications');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setNotifications(Array.isArray(parsed) ? parsed : []);
+      }
+    } catch (error) {
+      console.error('Failed to load notifications from localStorage:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // Setup WebSocket connection
+  // Save notifications to localStorage whenever they change
   useEffect(() => {
-    let wsClient: any = null;
-    
-    try {
-      wsClient = getWebSocketClient();
+    if (!isLoading) {
+      try {
+        localStorage.setItem('hafiportrait-notifications', JSON.stringify(notifications));
+      } catch (error) {
+        console.error('Failed to save notifications to localStorage:', error);
+      }
+    }
+  }, [notifications, isLoading]);
+
+  // Listen for real-time events
+  useEffect(() => {
+    const handleAdminUpload = (event: CustomEvent) => {
+      const { type, data } = event.detail;
       
-      // Connection status listeners
-      const handleConnected = () => {
-        setState(prev => ({ ...prev, isConnected: true, error: null }));
-        console.log('✅ WebSocket connected');
-      };
-
-      const handleDisconnected = () => {
-        setState(prev => ({ ...prev, isConnected: false }));
-        console.log('🔌 WebSocket disconnected');
-      };
-
-      const handleError = (data: any) => {
-        setState(prev => ({ ...prev, error: 'WebSocket connection error' }));
-        console.error('❌ WebSocket error:', data);
-      };
-
-      const handleMaxReconnect = () => {
-        setState(prev => ({ ...prev, error: 'Failed to connect to notification service' }));
-      };
-
-      // Notification listeners
-      const handleNotification = (payload: any) => {
-        setState(prev => ({ ...prev, unreadCount: prev.unreadCount + 1 }));
-        
-        // Show toast notification
-        if (payload.showToast && payload.title) {
-          addToast({
-            type: payload.type === 'upload_success' ? 'success' : 
-                  payload.type === 'upload_failed' ? 'error' : 'info',
-            title: payload.title,
-            message: payload.message,
-            duration: payload.persistent ? 0 : 5000
-          });
+      const newNotification: Notification = {
+        id: Date.now().toString(),
+        type: type,
+        title: getNotificationTitle(type),
+        message: data.message || `${data.fileName || 'File'} berhasil diupload`,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        priority: getNotificationPriority(type),
+        category: getNotificationCategory(type),
+        metadata: {
+          fileName: data.fileName,
+          eventName: data.eventName,
+          count: data.count,
+          percentage: data.percentage
         }
       };
+      
+      setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+      
+      // Mobile haptic feedback for high priority notifications
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        if (newNotification.priority === 'high' || newNotification.priority === 'critical') {
+          navigator.vibrate([100, 50, 100]); // Pattern: vibrate-pause-vibrate
+        } else if (newNotification.priority === 'medium') {
+          navigator.vibrate(100); // Single vibration
+        }
+      }
+    };
 
-      const handleUploadProgress = (payload: any) => {
-        console.log('📤 Upload progress:', payload);
-        // Could update a progress indicator here
-      };
-
-      const handleCameraStatus = (payload: any) => {
-        console.log('📷 Camera status:', payload);
-        
-        // Show important camera notifications
-        if (payload.type === 'camera_disconnected') {
-          addToast({
-            type: 'warning',
-            title: payload.title,
-            message: payload.message,
-            duration: 0 // Persistent
-          });
+    const handleDSLRNotification = (event: any) => {
+      const newNotification: Notification = {
+        id: Date.now().toString(),
+        type: event.type,
+        title: getNotificationTitle(event.type),
+        message: event.message || event.data?.message || 'New notification',
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        priority: getNotificationPriority(event.type),
+        category: getNotificationCategory(event.type),
+        metadata: {
+          fileName: event.data?.fileName,
+          eventName: event.data?.eventName,
+          count: event.data?.count,
+          percentage: event.data?.percentage
         }
       };
+      
+      setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+    };
 
-      const handleSystemStatus = (payload: any) => {
-        console.log('⚙️ System status:', payload);
-        
-        // Show system warnings
-        if (payload.type === 'storage_warning') {
-          addToast({
-            type: 'warning',
-            title: payload.title,
-            message: payload.message,
-            duration: 0 // Persistent
-          });
-        }
-      };
-
-      // Attach listeners
-      wsClient.on('connected', handleConnected);
-      wsClient.on('disconnected', handleDisconnected);
-      wsClient.on('error', handleError);
-      wsClient.on('max_reconnect_attempts', handleMaxReconnect);
-      wsClient.on('notification', handleNotification);
-      wsClient.on('upload_progress', handleUploadProgress);
-      wsClient.on('camera_status', handleCameraStatus);
-      wsClient.on('system_status', handleSystemStatus);
-
+    // Listen for events
+    if (typeof window !== 'undefined') {
+      window.addEventListener('admin-upload-success', handleAdminUpload as EventListener);
+      window.addEventListener('admin-upload-failed', handleAdminUpload as EventListener);
+      window.addEventListener('dslr-notification', handleDSLRNotification);
+      
       return () => {
-        // Cleanup listeners
-        if (wsClient) {
-          wsClient.off('connected', handleConnected);
-          wsClient.off('disconnected', handleDisconnected);
-          wsClient.off('error', handleError);
-          wsClient.off('max_reconnect_attempts', handleMaxReconnect);
-          wsClient.off('notification', handleNotification);
-          wsClient.off('upload_progress', handleUploadProgress);
-          wsClient.off('camera_status', handleCameraStatus);
-          wsClient.off('system_status', handleSystemStatus);
-        }
+        window.removeEventListener('admin-upload-success', handleAdminUpload as EventListener);
+        window.removeEventListener('admin-upload-failed', handleAdminUpload as EventListener);
+        window.removeEventListener('dslr-notification', handleDSLRNotification);
       };
-    } catch (error) {
-      console.error('❌ Error setting up WebSocket:', error);
-      setState(prev => ({ ...prev, error: 'Failed to initialize WebSocket connection' }));
     }
-  }, [addToast]);
+  }, []);
 
-  // Setup FCM foreground message listener
-  useEffect(() => {
-    if (state.fcmToken) {
-      onForegroundMessage((payload) => {
-        console.log('📨 Foreground FCM message:', payload);
-        
-        // Show toast for foreground messages
-        if (payload.notification) {
-          addToast({
-            type: 'info',
-            title: payload.notification.title || 'Notification',
-            message: payload.notification.body || 'You have a new notification',
-            action: payload.data?.url ? {
-              label: 'View',
-              onClick: () => window.open(payload.data.url, '_blank')
-            } : undefined
-          });
-        }
-        
-        // Update unread count
-        setState(prev => ({ ...prev, unreadCount: prev.unreadCount + 1 }));
-      });
-    }
-  }, [state.fcmToken, addToast]);
-
-  const initializeNotifications = async () => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-      // Check if notifications are supported
-      const isSupported = 'Notification' in window && 'serviceWorker' in navigator;
-      const permission = getNotificationPermission();
-      const existingToken = getCurrentToken();
-
-      setState(prev => ({
-        ...prev,
-        isSupported,
-        permission,
-        fcmToken: existingToken,
-        isLoading: false
-      }));
-
-      console.log('🔔 Notification system initialized:', {
-        isSupported,
-        permission,
-        hasToken: !!existingToken
-      });
-
-    } catch (error) {
-      console.error('❌ Error initializing notifications:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to initialize notification system'
-      }));
+  const getNotificationTitle = (type: string): string => {
+    switch (type) {
+      case 'upload_success': return '📸 Foto Berhasil Diupload';
+      case 'upload_failed': return '❌ Upload Gagal';
+      case 'upload_start': return '📤 Memulai Upload';
+      case 'camera_connected': return '📷 Kamera Terhubung';
+      case 'camera_disconnected': return '📷 Kamera Terputus';
+      case 'storage_warning': return '⚠️ Storage Hampir Penuh';
+      case 'event_milestone': return '🎉 Milestone Tercapai';
+      default: return '📢 Notifikasi Baru';
     }
   };
 
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-      const token = await requestNotificationPermission();
-      
-      if (token) {
-        setState(prev => ({
-          ...prev,
-          permission: 'granted',
-          fcmToken: token,
-          isLoading: false
-        }));
-
-        // Subscribe to default topics
-        await subscribeToTopic('general');
-        await subscribeToTopic('uploads');
-        
-        addToast({
-          type: 'success',
-          title: 'Notifications Enabled',
-          message: 'You will now receive real-time notifications'
-        });
-
-        return true;
-      } else {
-        setState(prev => ({
-          ...prev,
-          permission: 'denied',
-          isLoading: false,
-          error: 'Notification permission denied'
-        }));
-
-        addToast({
-          type: 'error',
-          title: 'Permission Denied',
-          message: 'Please enable notifications in your browser settings'
-        });
-
-        return false;
-      }
-    } catch (error) {
-      console.error('❌ Error requesting permission:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to request notification permission'
-      }));
-
-      addToast({
-        type: 'error',
-        title: 'Permission Error',
-        message: 'Failed to enable notifications'
-      });
-
-      return false;
+  const getNotificationPriority = (type: string): 'low' | 'medium' | 'high' | 'critical' => {
+    switch (type) {
+      case 'upload_failed': 
+      case 'camera_disconnected': 
+      case 'storage_warning': return 'high';
+      case 'upload_success': 
+      case 'event_milestone': return 'medium';
+      case 'upload_start': 
+      case 'camera_connected': return 'low';
+      default: return 'medium';
     }
-  }, [addToast]);
+  };
 
-  const sendTest = useCallback(async (): Promise<void> => {
-    try {
-      if (!state.fcmToken) {
-        throw new Error('No FCM token available');
-      }
-
-      await sendTestNotification();
-      
-      addToast({
-        type: 'info',
-        title: 'Test Sent',
-        message: 'Test notification has been sent'
-      });
-
-    } catch (error) {
-      console.error('❌ Error sending test notification:', error);
-      addToast({
-        type: 'error',
-        title: 'Test Failed',
-        message: 'Failed to send test notification'
-      });
+  const getNotificationCategory = (type: string): 'upload' | 'system' | 'event' | 'user' => {
+    switch (type) {
+      case 'upload_success':
+      case 'upload_failed':
+      case 'upload_start': return 'upload';
+      case 'camera_connected':
+      case 'camera_disconnected':
+      case 'storage_warning': return 'system';
+      case 'event_milestone': return 'event';
+      default: return 'user';
     }
-  }, [state.fcmToken, addToast]);
+  };
 
-  const subscribe = useCallback(async (topic: string): Promise<void> => {
-    try {
-      await subscribeToTopic(topic);
-      addToast({
-        type: 'success',
-        title: 'Subscribed',
-        message: `Subscribed to ${topic} notifications`
-      });
-    } catch (error) {
-      console.error('❌ Error subscribing to topic:', error);
-      addToast({
-        type: 'error',
-        title: 'Subscription Failed',
-        message: `Failed to subscribe to ${topic}`
-      });
-    }
-  }, [addToast]);
-
-  const unsubscribe = useCallback(async (topic: string): Promise<void> => {
-    try {
-      await unsubscribeFromTopic(topic);
-      addToast({
-        type: 'info',
-        title: 'Unsubscribed',
-        message: `Unsubscribed from ${topic} notifications`
-      });
-    } catch (error) {
-      console.error('❌ Error unsubscribing from topic:', error);
-      addToast({
-        type: 'error',
-        title: 'Unsubscribe Failed',
-        message: `Failed to unsubscribe from ${topic}`
-      });
-    }
-  }, [addToast]);
-
-  const markAsRead = useCallback((notificationId: string): void => {
-    // TODO: Send to server to mark as read
-    console.log('✅ Marking notification as read:', notificationId);
-    
-    // Update local unread count
-    setState(prev => ({ 
-      ...prev, 
-      unreadCount: Math.max(0, prev.unreadCount - 1) 
-    }));
+  const markAsRead = useCallback((id: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+    );
   }, []);
 
-  const markAllAsRead = useCallback((): void => {
-    // TODO: Send to server to mark all as read
-    console.log('✅ Marking all notifications as read');
-    
-    setState(prev => ({ ...prev, unreadCount: 0 }));
+  const markAllAsRead = useCallback(() => {
+    setNotifications(prev => 
+      prev.map(n => ({ ...n, isRead: true }))
+    );
   }, []);
 
-  const clearError = useCallback((): void => {
-    setState(prev => ({ ...prev, error: null }));
+  const deleteNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  const reconnect = useCallback((): void => {
-    const wsClient = getWebSocketClient();
-    wsClient.reconnect();
+  const clearAll = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+    };
     
-    addToast({
-      type: 'info',
-      title: 'Reconnecting',
-      message: 'Attempting to reconnect to notification service'
-    });
-  }, [addToast]);
+    setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return {
-    state,
-    requestPermission,
-    sendTest,
-    subscribe,
-    unsubscribe,
+    notifications,
+    unreadCount,
+    isLoading,
     markAsRead,
     markAllAsRead,
-    clearError,
-    reconnect
+    deleteNotification,
+    clearAll,
+    addNotification
   };
 }
