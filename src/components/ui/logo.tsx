@@ -62,9 +62,9 @@ export default function Logo({
 
   return (
     <div className={`flex items-center group cursor-pointer relative ${className}`}>
-      {/* Logo Container with Mobile Optimization */}
-      <div className="flex items-baseline relative gap-1 sm:gap-2 overflow-hidden mobile-logo-container">
-        {/* "H" with Enhanced Typography */}
+      {/* Logo Container with improved spacing and no overflow hidden */}
+      <div className="flex items-baseline relative gap-1 sm:gap-2 mobile-logo-container">
+        {/* "H" with Enhanced Typography - Fixed positioning */}
         <span 
           className={`${config.h} text-gray-800 dark:text-gray-100 group-hover:text-gray-700 dark:group-hover:text-gray-200 group-hover:scale-105 transition-all duration-700 relative z-10 mobile-logo-glow mobile-logo-h ${
             animated && isLoaded 
@@ -80,15 +80,17 @@ export default function Logo({
             textTransform: 'uppercase',
             filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
             textShadow: '0 0 1px rgba(0,0,0,0.5)',
-            transitionDelay: animated ? '0ms' : '0ms'
+            transitionDelay: animated ? '0ms' : '0ms',
+            lineHeight: '1.2',
+            display: 'inline-block'
           }}
         >
           H
         </span>
         
-        {/* "afiportrait" with Enhanced Typography */}
+        {/* "afiportrait" with Clear Typography - Removed gradient */}
         <span 
-          className={`${config.afiportrait} group-hover:scale-102 transition-all duration-700 relative z-10 mobile-logo-text ${
+          className={`${config.afiportrait} text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-200 group-hover:scale-102 transition-all duration-700 relative z-10 mobile-logo-text ${
             animated && isLoaded 
               ? 'transform translate-x-0 opacity-100' 
               : animated 
@@ -99,26 +101,24 @@ export default function Logo({
             fontFamily: '"Edu TAS Beginner", cursive',
             fontWeight: '600',
             letterSpacing: isMobile ? '0.5px' : '1px',
-            background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 50%, #0f1419 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.4))',
-            textShadow: '0 0 2px rgba(0,0,0,0.8), 0 0 8px rgba(74, 85, 104, 0.4)',
-            transitionDelay: animated ? '150ms' : '0ms'
+            filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.2))',
+            textShadow: '0 0 1px rgba(0,0,0,0.3)',
+            transitionDelay: animated ? '150ms' : '0ms',
+            lineHeight: '1.2',
+            display: 'inline-block'
           }}
         >
           afiportrait
         </span>
         
-        {/* Enhanced Glow Effect */}
+        {/* Subtle Glow Effect */}
         <div 
-          className={`absolute inset-0 group-hover:opacity-40 transition-all duration-500 blur-sm ${
-            isLoaded ? 'opacity-20' : 'opacity-0'
+          className={`absolute inset-0 group-hover:opacity-20 transition-all duration-500 blur-sm ${
+            isLoaded ? 'opacity-10' : 'opacity-0'
           }`}
           style={{
-            background: 'radial-gradient(ellipse at center, rgba(212, 175, 55, 0.3) 0%, transparent 70%)',
-            transform: 'scale(1.2)',
+            background: 'radial-gradient(ellipse at center, rgba(212, 175, 55, 0.2) 0%, transparent 70%)',
+            transform: 'scale(1.1)',
             transitionDelay: animated ? '300ms' : '0ms'
           }}
         />
