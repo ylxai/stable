@@ -29,11 +29,12 @@ export default function TestLoginPage() {
     setDebugInfo(null);
 
     try {
-      // Test different API URLs
+      // Test different API URLs with better error handling
       const testUrls = [
-        '/api/auth/test',
-        'https://hafiportrait.photography/api/auth/test',
-        `${window.location.origin}/api/auth/test`
+        '/api/test-simple', // Simple test endpoint
+        '/api/auth/test', // Auth test endpoint
+        'https://hafiportrait.photography/api/test-simple', // Production simple test
+        `${window.location.origin}/api/test-simple` // Current domain simple test
       ];
 
       const results = [];
@@ -41,26 +42,56 @@ export default function TestLoginPage() {
       for (const url of testUrls) {
         try {
           console.log(`Testing URL: ${url}`);
+          
+          // Add timeout to fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
           const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
             },
+            signal: controller.signal,
           });
 
-          const data = await response.json();
+          clearTimeout(timeoutId);
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (parseError) {
+            data = { error: 'Failed to parse response' };
+          }
+
           results.push({
             url,
             status: response.status,
             ok: response.ok,
             data,
-            headers: Object.fromEntries(response.headers.entries())
+            headers: Object.fromEntries(response.headers.entries()),
+            error: null
           });
         } catch (error) {
+          console.error(`Error testing ${url}:`, error);
+          
+          let errorMessage = 'Unknown error';
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMessage = 'Network error - Failed to fetch';
+          } else if (error instanceof Error && error.name === 'AbortError') {
+            errorMessage = 'Request timeout';
+          } else if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+          
           results.push({
             url,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            status: null,
+            ok: false,
+            data: null,
+            headers: {},
+            error: errorMessage
           });
         }
       }
@@ -68,11 +99,19 @@ export default function TestLoginPage() {
       setDebugInfo({
         currentOrigin: window.location.origin,
         environment: process.env.NODE_ENV,
-        testResults: results
+        testResults: results,
+        timestamp: new Date().toISOString()
       });
 
-      setSuccess('API test completed. Check debug info below.');
+      // Check if any endpoint worked
+      const workingEndpoints = results.filter(r => r.ok);
+      if (workingEndpoints.length > 0) {
+        setSuccess(`API test completed. ${workingEndpoints.length} endpoint(s) working.`);
+      } else {
+        setError('All API endpoints failed. Check debug info below.');
+      }
     } catch (error) {
+      console.error('Test API connection error:', error);
       setError('Failed to test API connections');
     } finally {
       setIsLoading(false);
@@ -87,7 +126,7 @@ export default function TestLoginPage() {
     setDebugInfo(null);
 
     try {
-      // Test different login URLs
+      // Test different login URLs with better error handling
       const loginUrls = [
         '/api/auth/login',
         'https://hafiportrait.photography/api/auth/login',
@@ -99,6 +138,11 @@ export default function TestLoginPage() {
       for (const url of loginUrls) {
         try {
           console.log(`Testing login URL: ${url}`);
+          
+          // Add timeout to fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
           const response = await fetch(url, {
             method: 'POST',
             credentials: 'include',
@@ -106,20 +150,45 @@ export default function TestLoginPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ username, password }),
+            signal: controller.signal,
           });
 
-          const data = await response.json();
+          clearTimeout(timeoutId);
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (parseError) {
+            data = { error: 'Failed to parse response' };
+          }
+
           results.push({
             url,
             status: response.status,
             ok: response.ok,
             data,
-            headers: Object.fromEntries(response.headers.entries())
+            headers: Object.fromEntries(response.headers.entries()),
+            error: null
           });
         } catch (error) {
+          console.error(`Error testing login ${url}:`, error);
+          
+          let errorMessage = 'Unknown error';
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMessage = 'Network error - Failed to fetch';
+          } else if (error instanceof Error && error.name === 'AbortError') {
+            errorMessage = 'Request timeout';
+          } else if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+          
           results.push({
             url,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            status: null,
+            ok: false,
+            data: null,
+            headers: {},
+            error: errorMessage
           });
         }
       }
@@ -127,17 +196,23 @@ export default function TestLoginPage() {
       setDebugInfo({
         currentOrigin: window.location.origin,
         environment: process.env.NODE_ENV,
-        loginResults: results
+        loginResults: results,
+        timestamp: new Date().toISOString()
       });
 
       // Check if any login was successful
       const successfulLogin = results.find(r => r.ok && r.data?.success);
+      const failedWith401 = results.find(r => r.status === 401);
+      
       if (successfulLogin) {
         setSuccess('Login test completed. One or more endpoints responded successfully.');
+      } else if (failedWith401) {
+        setSuccess('Login endpoint is working (correctly rejected credentials).');
       } else {
         setError('All login endpoints failed. Check debug info below.');
       }
     } catch (error) {
+      console.error('Test login error:', error);
       setError('Failed to test login endpoints');
     } finally {
       setIsLoading(false);
@@ -294,7 +369,7 @@ export default function TestLoginPage() {
                   {JSON.stringify({
                     currentOrigin: debugInfo.currentOrigin,
                     environment: debugInfo.environment,
-                    timestamp: new Date().toISOString()
+                    timestamp: debugInfo.timestamp
                   }, null, 2)}
                 </pre>
               </div>
