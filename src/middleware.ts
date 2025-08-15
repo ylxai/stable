@@ -1,18 +1,84 @@
 /**
- * Next.js Middleware for Authentication
- * Protects admin routes and handles authentication
+ * Next.js Middleware for Authentication and CORS
+ * Protects admin routes and handles authentication with enhanced CORS support
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-// Edge Runtime compatible validation
-// import { validateSession } from '@/lib/auth';
 
 // Routes that require authentication
 const protectedRoutes = ['/admin'];
 
 // Routes that should redirect to admin if already authenticated
 const authRoutes = ['/admin/login'];
+
+// Allowed origins for CORS
+const getAllowedOrigins = (): string[] => {
+  const origins = [
+    // Production domains
+    'https://hafiportrait.photography',
+    'https://www.hafiportrait.photography',
+    'https://hafiportrait.vercel.app',
+    'https://hafiportrait-git-main.vercel.app',
+    'https://hafiportrait-git-develop.vercel.app',
+    
+    // Development domains
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    
+    // Vercel preview domains (wildcard)
+    'https://*.vercel.app',
+    
+    // Additional production domains
+    'https://hafiportrait.com',
+    'https://www.hafiportrait.com',
+  ];
+
+  // Add environment-specific origins
+  if (process.env.NODE_ENV === 'development') {
+    origins.push('http://localhost:*');
+    origins.push('http://127.0.0.1:*');
+  }
+
+  // Add custom domains from environment variables
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.push(process.env.NEXT_PUBLIC_APP_URL);
+  }
+
+  if (process.env.ALLOWED_ORIGINS) {
+    const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    origins.push(...customOrigins);
+  }
+
+  return origins;
+};
+
+// Check if origin is allowed
+const isOriginAllowed = (origin: string): boolean => {
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Allow all origins in development
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
+  // Check exact match
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  // Check wildcard patterns
+  return allowedOrigins.some(allowedOrigin => {
+    if (allowedOrigin.includes('*')) {
+      const pattern = allowedOrigin.replace(/\*/g, '.*');
+      const regex = new RegExp(`^${pattern}$`);
+      return regex.test(origin);
+    }
+    return false;
+  });
+};
 
 // Helper function to get base URL for API calls
 function getBaseUrl(request: NextRequest): string {
@@ -73,9 +139,50 @@ async function validateSessionWithRetry(baseUrl: string, sessionId: string, retr
   }
 }
 
+// Add CORS headers to response
+function addCorsHeaders(response: NextResponse, origin?: string): NextResponse {
+  const headers = {
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-API-Key, X-User-ID, X-User-Username, X-User-Role',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400', // 24 hours
+  };
+
+  // Set Access-Control-Allow-Origin with security considerations
+  if (!origin || isOriginAllowed(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin || '*';
+  } else {
+    // Fallback to first allowed origin
+    const allowedOrigins = getAllowedOrigins();
+    headers['Access-Control-Allow-Origin'] = allowedOrigins[0] || '*';
+  }
+
+  // Add security headers for production
+  if (process.env.NODE_ENV === 'production') {
+    headers['X-Content-Type-Options'] = 'nosniff';
+    headers['X-Frame-Options'] = 'DENY';
+    headers['X-XSS-Protection'] = '1; mode=block';
+    headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
+    headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()';
+  }
+
+  Object.entries(headers).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionId = request.cookies.get('admin_session')?.value;
+  const origin = request.headers.get('origin') || request.headers.get('referer');
+
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    const response = new NextResponse(null, { status: 200 });
+    return addCorsHeaders(response, origin);
+  }
 
   // Block common bot attack patterns FIRST (before any processing)
   const blockedPaths = [
@@ -90,15 +197,20 @@ export async function middleware(request: NextRequest) {
   
   if (isBlocked) {
     // Return 404 immediately without logging
-    return new NextResponse(null, { 
+    const response = new NextResponse(null, { 
       status: 404,
       headers: { 'Cache-Control': 'public, max-age=3600' }
     });
+    return addCorsHeaders(response, origin);
   }
 
   // Skip middleware for health checks and static assets
-  if (pathname.includes('/health') || pathname.includes('/_next/') || pathname.includes('/favicon')) {
-    return NextResponse.next();
+  if (pathname.includes('/health') || 
+      pathname.includes('/_next/') || 
+      pathname.includes('/favicon') ||
+      pathname.includes('/api/health')) {
+    const response = NextResponse.next();
+    return addCorsHeaders(response, origin);
   }
 
   // Check if the route is protected
@@ -115,7 +227,8 @@ export async function middleware(request: NextRequest) {
       // No session, redirect to login
       const loginUrl = new URL('/admin/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+      const response = NextResponse.redirect(loginUrl);
+      return addCorsHeaders(response, origin);
     }
 
     // Validate session with robust error handling
@@ -130,11 +243,12 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-username', user.username);
       requestHeaders.set('x-user-role', user.role);
 
-      return NextResponse.next({
+      const response = NextResponse.next({
         request: {
           headers: requestHeaders,
         },
       });
+      return addCorsHeaders(response, origin);
     } catch (error) {
       console.error('Middleware session validation error:', error);
       
@@ -147,7 +261,7 @@ export async function middleware(request: NextRequest) {
         maxAge: 0,
         path: '/'
       });
-      return response;
+      return addCorsHeaders(response, origin);
     }
   }
 
@@ -158,7 +272,8 @@ export async function middleware(request: NextRequest) {
       await validateSessionWithRetry(baseUrl, sessionId, 1); // Single retry for auth routes
       
       // Already authenticated, redirect to admin dashboard
-      return NextResponse.redirect(new URL('/admin', request.url));
+      const response = NextResponse.redirect(new URL('/admin', request.url));
+      return addCorsHeaders(response, origin);
     } catch (error) {
       // Continue to login page if validation fails
       console.warn('Auth route validation error:', error);
@@ -172,11 +287,13 @@ export async function middleware(request: NextRequest) {
         maxAge: 0,
         path: '/'
       });
-      return response;
+      return addCorsHeaders(response, origin);
     }
   }
 
-  return NextResponse.next();
+  // For all other routes, add CORS headers
+  const response = NextResponse.next();
+  return addCorsHeaders(response, origin);
 }
 
 // Configure which routes to run middleware on
