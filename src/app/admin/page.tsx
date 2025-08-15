@@ -51,11 +51,6 @@ import type { Event } from "@/lib/database";
 import type { EventFormData } from "@/components/admin/EventForm";
 
 // Dynamic imports for heavy components to avoid circular dependencies
-const SystemMonitorsWrapper = dynamic(() => import("@/components/admin/system-monitors-wrapper"), {
-  ssr: false,
-  loading: () => <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
-});
-
 // Import individual monitors
 const DSLRMonitor = dynamic(() => import("@/components/admin/dslr-monitor"), {
   ssr: false,
