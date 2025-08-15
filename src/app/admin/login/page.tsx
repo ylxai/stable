@@ -12,8 +12,48 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Lock, User, Camera } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Camera, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { ColorPaletteProvider } from '@/components/ui/color-palette-provider';
+
+// Toast notification component
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const icons = {
+    success: <CheckCircle className="h-5 w-5 text-green-500" />,
+    error: <AlertCircle className="h-5 w-5 text-red-500" />,
+    info: <Info className="h-5 w-5 text-blue-500" />
+  };
+
+  const colors = {
+    success: 'bg-green-50 border-green-200 text-green-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800'
+  };
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border shadow-lg max-w-sm ${colors[type]}`}>
+      <div className="flex items-center space-x-3">
+        {icons[type]}
+        <div className="flex-1">
+          <p className="text-sm font-medium">{message}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function LoginForm() {
   const [username, setUsername] = useState('');
@@ -21,19 +61,37 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/admin';
 
-  // Note: Removed auth check to prevent 401 console errors on login page
-  // Authentication will be handled by middleware and useRequireAuth hook
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+  };
+
+  // Clear toast
+  const clearToast = () => {
+    setToast(null);
+  };
+
+  // Clear form
+  const clearForm = () => {
+    setUsername('');
+    setPassword('');
+    setError('');
+    setSuccess('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
 
     try {
       // Smart URL detection for different environments
@@ -47,6 +105,7 @@ function LoginForm() {
         }
         return process.env.DSLR_API_BASE_URL || 'http://localhost:3000';
       })();
+
       const response = await fetch(`${baseUrl}/api/auth/login`, {
         method: 'POST',
         credentials: 'include',
@@ -60,21 +119,64 @@ function LoginForm() {
 
       if (response.ok) {
         // Login successful
-        router.replace(redirectTo);
+        setSuccess('Login berhasil! Mengalihkan ke dashboard...');
+        showToast('Login berhasil!', 'success');
+        
+        // Clear form
+        clearForm();
+        
+        // Redirect after a short delay to show success message
+        setTimeout(() => {
+          router.replace(redirectTo);
+        }, 1500);
       } else {
-        setError(data.error || 'Login failed');
+        // Handle different error types
+        let errorMessage = 'Login gagal';
+        
+        if (response.status === 401) {
+          errorMessage = 'Username atau password salah';
+        } else if (response.status === 429) {
+          errorMessage = 'Terlalu banyak percobaan login. Silakan coba lagi nanti.';
+        } else if (response.status === 500) {
+          errorMessage = 'Terjadi kesalahan server. Silakan coba lagi.';
+        } else if (data.error) {
+          errorMessage = data.error;
+        }
+        
+        setError(errorMessage);
+        showToast(errorMessage, 'error');
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Login error:', error);
+      
+      let errorMessage = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+      }
+      
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle form validation
+  const isFormValid = username.trim() && password.trim();
 
   return (
     <ColorPaletteProvider>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={clearToast}
+          />
+        )}
+
         <div className="w-full max-w-md space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
@@ -98,9 +200,23 @@ function LoginForm() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Success Message */}
+              {success && (
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    {success}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Error Message */}
               {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant="destructive" className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {error}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -119,6 +235,7 @@ function LoginForm() {
                       className="pl-10 h-12"
                       required
                       autoComplete="username"
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -137,11 +254,13 @@ function LoginForm() {
                       className="pl-10 pr-10 h-12"
                       required
                       autoComplete="current-password"
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff /> : <Eye />}
                     </button>
@@ -156,6 +275,7 @@ function LoginForm() {
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="h-4 w-4 text-dynamic-primary focus:ring-dynamic-primary border-gray-300 rounded"
+                    disabled={isLoading}
                   />
                   <Label htmlFor="remember" className="text-sm text-gray-600">
                     Remember me for 30 days
@@ -165,8 +285,8 @@ function LoginForm() {
                 {/* Login Button */}
                 <Button
                   type="submit"
-                  className="w-full h-12 bg-dynamic-primary hover:bg-dynamic-primary/90 text-white font-medium"
-                  disabled={isLoading}
+                  className="w-full h-12 bg-dynamic-primary hover:bg-dynamic-primary/90 text-white font-medium disabled:opacity-50"
+                  disabled={isLoading || !isFormValid}
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
@@ -178,7 +298,6 @@ function LoginForm() {
                   )}
                 </Button>
               </form>
-
 
               {/* Security Notice */}
               <div className="pt-4 border-t">
