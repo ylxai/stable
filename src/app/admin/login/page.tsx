@@ -96,9 +96,26 @@ function LoginForm() {
     try {
       // Smart URL detection for different environments
       const baseUrl = (() => {
-        if (typeof window !== 'undefined') {
-          return window.location.origin;
+        // First, check for environment variable
+        if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+          console.log('Using NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+          return process.env.NEXT_PUBLIC_API_BASE_URL;
         }
+
+        if (typeof window !== 'undefined') {
+          const currentOrigin = window.location.origin;
+          console.log('Current origin:', currentOrigin);
+          
+          // Check if this is a Vercel preview domain
+          if (currentOrigin.includes('vercel.app') && !currentOrigin.includes('hafiportrait')) {
+            // For Vercel preview, use the main production API
+            console.log('Detected Vercel preview, using production API');
+            return 'https://hafiportrait.photography';
+          }
+          
+          return currentOrigin;
+        }
+        
         // Server-side fallback
         if (process.env.NODE_ENV === 'production') {
           return process.env.NEXT_PUBLIC_APP_URL || 'https://hafiportrait.photography';
@@ -106,7 +123,11 @@ function LoginForm() {
         return process.env.DSLR_API_BASE_URL || 'http://localhost:3000';
       })();
 
-      const response = await fetch(`${baseUrl}/api/auth/login`, {
+      console.log('Using API base URL:', baseUrl);
+      const apiUrl = `${baseUrl}/api/auth/login`;
+      console.log('Full API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -115,7 +136,11 @@ function LoginForm() {
         body: JSON.stringify({ username, password }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (response.ok) {
         // Login successful
@@ -139,6 +164,10 @@ function LoginForm() {
           errorMessage = 'Terlalu banyak percobaan login. Silakan coba lagi nanti.';
         } else if (response.status === 500) {
           errorMessage = 'Terjadi kesalahan server. Silakan coba lagi.';
+        } else if (response.status === 404) {
+          errorMessage = 'API endpoint tidak ditemukan. Silakan coba lagi.';
+        } else if (response.status === 403) {
+          errorMessage = 'Akses ditolak. Silakan coba lagi.';
         } else if (data.error) {
           errorMessage = data.error;
         }
@@ -153,6 +182,8 @@ function LoginForm() {
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
         errorMessage = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+      } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMessage = 'Gagal terhubung ke API. Silakan coba lagi.';
       }
       
       setError(errorMessage);

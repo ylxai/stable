@@ -11,15 +11,20 @@ import { corsResponse, corsErrorResponse, handleOptions } from '@/lib/cors';
 // Handle OPTIONS preflight requests
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || request.headers.get('referer');
+  console.log('OPTIONS request from origin:', origin);
   return handleOptions(origin);
 }
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin') || request.headers.get('referer');
+  console.log('POST request from origin:', origin);
+  console.log('Request URL:', request.url);
+  console.log('Request method:', request.method);
   
   try {
     // Validate request method
     if (request.method !== 'POST') {
+      console.log('Invalid method:', request.method);
       return corsErrorResponse('Method not allowed', 405, origin);
     }
 
@@ -27,7 +32,9 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
+      console.log('Request body:', { ...body, password: '[HIDDEN]' });
     } catch (error) {
+      console.error('JSON parse error:', error);
       return corsErrorResponse('Invalid JSON in request body', 400, origin);
     }
 
@@ -35,15 +42,18 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!username || !password) {
+      console.log('Missing credentials');
       return corsErrorResponse('Username dan password harus diisi', 400, origin);
     }
 
     // Validate input length
     if (username.length < 3 || username.length > 50) {
+      console.log('Invalid username length:', username.length);
       return corsErrorResponse('Username harus antara 3-50 karakter', 400, origin);
     }
 
     if (password.length < 6 || password.length > 100) {
+      console.log('Invalid password length:', password.length);
       return corsErrorResponse('Password harus antara 6-100 karakter', 400, origin);
     }
 
@@ -54,14 +64,18 @@ export async function POST(request: NextRequest) {
                      'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
+    console.log('Client info:', { ipAddress, userAgent: userAgent.substring(0, 100) });
+
     // Rate limiting check (basic implementation)
     const rateLimitKey = `login_attempts:${ipAddress}`;
     // Note: In production, implement proper rate limiting with Redis or similar
 
     // Authenticate user
+    console.log('Attempting authentication for username:', username);
     const user = await authenticateUser({ username, password });
     
     if (!user) {
+      console.log('Authentication failed for username:', username);
       // Log failed login attempt
       await logActivity(
         0, // No user ID for failed attempts
@@ -80,8 +94,11 @@ export async function POST(request: NextRequest) {
       return corsErrorResponse('Username atau password salah', 401, origin);
     }
 
+    console.log('Authentication successful for user:', user.username);
+
     // Check if user is active
     if (user.status !== 'active') {
+      console.log('User account inactive:', user.username);
       await logActivity(
         user.id,
         'login_failed',
@@ -100,11 +117,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session
+    console.log('Creating session for user:', user.username);
     const sessionId = await createSession(user.id, ipAddress, userAgent);
 
     if (!sessionId) {
+      console.error('Failed to create session for user:', user.username);
       return corsErrorResponse('Gagal membuat sesi. Silakan coba lagi.', 500, origin);
     }
+
+    console.log('Session created successfully:', sessionId);
 
     // Log successful login
     await logActivity(
@@ -125,6 +146,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     const isProduction = process.env.NODE_ENV === 'production';
     
+    console.log('Setting cookie with secure:', isProduction);
     cookieStore.set('admin_session', sessionId, {
       httpOnly: true,
       secure: isProduction,
@@ -135,7 +157,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return user data (without sensitive info)
-    return corsResponse({
+    const responseData = {
       success: true,
       user: {
         id: user.id,
@@ -150,7 +172,10 @@ export async function POST(request: NextRequest) {
         expires_in: 24 * 60 * 60, // 24 hours in seconds
         created_at: new Date().toISOString()
       }
-    }, 200, origin);
+    };
+
+    console.log('Login successful, returning response');
+    return corsResponse(responseData, 200, origin);
 
   } catch (error) {
     console.error('Login API error:', error);
